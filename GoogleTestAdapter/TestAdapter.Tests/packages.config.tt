@@ -11,7 +11,7 @@
   <package id="System.Threading.Tasks.Extensions" version="4.5.2" targetFramework="net45" />
   <package id="System.ValueTuple" version="4.5.0" targetFramework="net45" />
 <# if (TestAdapterFlavor == "GTA") { #>
-  <package id="Microsoft.TestPlatform.ObjectModel" version="11.0.1" targetFramework="net452" />
+  <package id="Microsoft.TestPlatform.ObjectModel" version="11.0.0" targetFramework="net452" />
 <# } else if (TestAdapterFlavor == "TAfGT") { #>
   <package id="Microsoft.TestPlatform.ObjectModel" version="15.0.1" targetFramework="net46" />
 <# } #>

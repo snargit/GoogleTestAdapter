@@ -130,6 +130,11 @@ namespace GoogleTestAdapter.Helpers
             try
             {
                 directory = Path.GetDirectoryName(pattern);
+                // .NET >= 4.6.2 path handling no longer throws on ':' outside of the drive specifier
+                if (directory != null && directory.LastIndexOf(':') > 1)
+                {
+                    directory = null;
+                }
             }
             catch (Exception)
             {

@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using GoogleTestAdapter.Common;
 using GoogleTestAdapter.ProcessExecution.Contracts;
@@ -66,6 +69,29 @@ namespace GoogleTestAdapter.Tests.Common.Tests
         protected void Test_IgnoresIfProcessReturnsErrorCode_DoesNotThrow()
         {
             ProcessExecutor.ExecuteCommandBlocking("cmd.exe", "/C \"echo 2\"", ".", "", new Dictionary<string, string>(), line => { });
+        }
+
+        protected void Test_Cancel_KillsProcessTree()
+        {
+            // cmd.exe starts ping.exe, which keeps running (and keeps the output pipe open) if only cmd.exe is killed
+            var output = new List<string>();
+            Task<int> execution = Task.Run(() => ProcessExecutor.ExecuteCommandBlocking(
+                "cmd.exe", "/C \"ping -n 30 127.0.0.1\"", ".", "", new Dictionary<string, string>(),
+                line => { lock (output) output.Add(line); }));
+
+            var stopwatch = Stopwatch.StartNew();
+            while (stopwatch.Elapsed < TimeSpan.FromSeconds(10))
+            {
+                lock (output)
+                {
+                    if (output.Any(line => line.Contains("127.0.0.1")))
+                        break;
+                }
+                Thread.Sleep(50);
+            }
+            ProcessExecutor.Cancel();
+
+            execution.Wait(TimeSpan.FromSeconds(10)).Should().BeTrue("canceling should kill cmd.exe and ping.exe");
         }
 
         protected void Test_WithEnvSetting_EnvVariableIsSet()

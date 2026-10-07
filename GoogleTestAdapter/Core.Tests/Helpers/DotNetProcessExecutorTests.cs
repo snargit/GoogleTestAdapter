@@ -50,6 +50,13 @@ namespace GoogleTestAdapter.Helpers
 
         [TestMethod]
         [TestCategory(TestMetadata.TestCategories.Unit)]
+        public void Cancel_ProcessWithChildProcess_KillsProcessTree()
+        {
+            Test_Cancel_KillsProcessTree();
+        }
+
+        [TestMethod]
+        [TestCategory(TestMetadata.TestCategories.Unit)]
         public void ExecuteProcessBlocking_SetEnvVariable_EnvVariableIsSet()
         {
             Test_WithEnvSetting_EnvVariableIsSet();

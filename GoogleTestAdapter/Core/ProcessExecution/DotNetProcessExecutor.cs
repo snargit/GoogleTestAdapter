@@ -15,6 +15,7 @@ namespace GoogleTestAdapter.ProcessExecution
         private readonly ILogger _logger;
         
         private Process _process;
+        private volatile JobObject _job;
 
         public static void LogStartOfOutput(ILogger logger, string command, string parameters)
         {
@@ -87,30 +88,38 @@ namespace GoogleTestAdapter.ProcessExecution
                 }
 
                 _process.Start();
-                _process.BeginOutputReadLine();
-                _process.BeginErrorReadLine();
-
-                if (_process.WaitForExit(int.MaxValue) &&
-                    outputWaitHandle.WaitOne(int.MaxValue) &&
-                    errorWaitHandle.WaitOne(int.MaxValue))
+                using (_job = JobObject.TryCreate(_process.Handle, _process.Id, _logger))
                 {
-                    if (_printTestOutput)
+                    _process.BeginOutputReadLine();
+                    _process.BeginErrorReadLine();
+
+                    if (_process.WaitForExit(int.MaxValue) &&
+                        outputWaitHandle.WaitOne(int.MaxValue) &&
+                        errorWaitHandle.WaitOne(int.MaxValue))
                     {
-                        LogEndOfOutput(_logger);
+                        if (_printTestOutput)
+                        {
+                            LogEndOfOutput(_logger);
+                        }
+
+                        _logger.DebugInfo($"Executable {command} returned with exit code {_process.ExitCode}");
+                        return _process.ExitCode;
                     }
 
-                    _logger.DebugInfo($"Executable {command} returned with exit code {_process.ExitCode}");
-                    return _process.ExitCode;
+                    _logger.DebugInfo($"Executable {command} did not return properly, using return code {int.MaxValue}");
+                    return int.MaxValue;
                 }
-
-                _logger.DebugInfo($"Executable {command} did not return properly, using return code {int.MaxValue}");
-                return int.MaxValue;
             }
         }
 
         public void Cancel()
         {
-            if (_process != null)
+            JobObject job = _job;
+            if (job != null)
+            {
+                job.Terminate();
+            }
+            else if (_process != null)
             {
                 ProcessUtils.KillProcess(_process.Id, _logger);
             }

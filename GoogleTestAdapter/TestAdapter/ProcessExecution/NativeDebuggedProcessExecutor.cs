@@ -40,7 +40,12 @@ namespace GoogleTestAdapter.TestAdapter.ProcessExecution
         {
             try
             {
-                int exitCode = NativeMethods.ExecuteCommandBlocking(command, parameters, workingDir, pathExtension, environmentVariables, _debuggerAttacher, _debuggerEngine, _logger, _printTestOutput, reportOutputLine, processId => _processId = processId);
+                int exitCode = NativeMethods.ExecuteCommandBlocking(command, parameters, workingDir, pathExtension, environmentVariables, _debuggerAttacher, _debuggerEngine, _logger, _printTestOutput, reportOutputLine,
+                    (processId, job) =>
+                    {
+                        _processId = processId;
+                        _job = job;
+                    });
                 _logger.DebugInfo($"Executable {command} returned with exit code {exitCode}");
                 return exitCode;
             }
@@ -53,10 +58,14 @@ namespace GoogleTestAdapter.TestAdapter.ProcessExecution
         }
 
         private int? _processId;
+        private volatile JobObject _job;
 
         public void Cancel()
         {
-            if (_processId.HasValue)
+            JobObject job = _job;
+            if (job != null)
+                job.Terminate();
+            else if (_processId.HasValue)
                 ProcessUtils.KillProcess(_processId.Value, _logger);
         }
 
@@ -106,7 +115,7 @@ namespace GoogleTestAdapter.TestAdapter.ProcessExecution
             internal static int ExecuteCommandBlocking(
                 string command, string parameters, string workingDir, string pathExtension, IDictionary<string, string> environmentVariables, 
                 IDebuggerAttacher debuggerAttacher, DebuggerEngine debuggerEngine, 
-                ILogger logger, bool printTestOutput, Action<string> reportOutputLine, Action<int> reportProcessId)
+                ILogger logger, bool printTestOutput, Action<string> reportOutputLine, Action<int, JobObject> reportProcess)
             {
                 ProcessOutputPipeStream pipeStream = null;
                 try
@@ -114,10 +123,12 @@ namespace GoogleTestAdapter.TestAdapter.ProcessExecution
                     pipeStream = new ProcessOutputPipeStream();
 
                     var processInfo = CreateProcess(command, parameters, workingDir, pathExtension, environmentVariables, pipeStream._writingEnd);
-                    reportProcessId(processInfo.dwProcessId);
                     using (var process = new SafeWaitHandle(processInfo.hProcess, true))
                     using (var thread  = new SafeWaitHandle(processInfo.hThread, true))
+                    // the process is still suspended, so it can not have started any child processes yet
+                    using (var job = JobObject.TryCreate(processInfo.hProcess, processInfo.dwProcessId, logger))
                     {
+                        reportProcess(processInfo.dwProcessId, job);
                         pipeStream.ConnectedToChildProcess();
 
                         logger.DebugInfo($"Attaching debugger to '{command}' via {debuggerEngine} engine");

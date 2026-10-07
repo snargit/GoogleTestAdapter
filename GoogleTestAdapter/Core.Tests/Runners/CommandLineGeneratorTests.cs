@@ -209,6 +209,42 @@ namespace GoogleTestAdapter.Runners
 
         [TestMethod]
         [TestCategory(Unit)]
+        public void GetCommandLines_TestsOfSuitesWithDotsInName_AreCombinedViaFullSuiteName()
+        {
+            string[] testCaseNamesToRun = { "unittests.suite_1.test_1", "unittests.suite_1.test_2", "unittests.suite_2.test_1" };
+            string[] allTestCaseNames = testCaseNamesToRun.Union(new[] { "unittests.suite_2.test_2", "unittests.suite_3.test_1" }).ToArray();
+            IEnumerable<Model.TestCase> testCasesToRun = TestDataCreator.CreateDummyTestCasesFull(testCaseNamesToRun, allTestCaseNames);
+
+            string commandLine = new CommandLineGenerator(testCasesToRun, TestDataCreator.DummyExecutable.Length, "", "", TestEnvironment.Options)
+                .GetCommandLines().First().CommandLine;
+
+            commandLine.Should()
+                .Be($"--gtest_output=\"xml:\"{DefaultArgs} --gtest_filter=unittests.suite_1.*:unittests.suite_2.test_1");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetCommandLines_SingleTestsOfSuitesWithDotsInName_AreNotCombinedViaRootSuite()
+        {
+            // see issue #330: each suite contributes as many tests as the "unittests" root suite has suites
+            string[] testCaseNamesToRun = { "unittests.suite_1.test_3", "unittests.suite_2.test_3", "unittests.suite_3.test_3" };
+            string[] allTestCaseNames = testCaseNamesToRun.Union(new[]
+            {
+                "unittests.suite_1.test_1", "unittests.suite_1.test_2",
+                "unittests.suite_2.test_1", "unittests.suite_2.test_2",
+                "unittests.suite_3.test_1", "unittests.suite_3.test_2"
+            }).ToArray();
+            IEnumerable<Model.TestCase> testCasesToRun = TestDataCreator.CreateDummyTestCasesFull(testCaseNamesToRun, allTestCaseNames);
+
+            string commandLine = new CommandLineGenerator(testCasesToRun, TestDataCreator.DummyExecutable.Length, "", "", TestEnvironment.Options)
+                .GetCommandLines().First().CommandLine;
+
+            commandLine.Should()
+                .Be($"--gtest_output=\"xml:\"{DefaultArgs} --gtest_filter=unittests.suite_1.test_3:unittests.suite_2.test_3:unittests.suite_3.test_3");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
         public void GetCommandLines_TestsWithoutCommonSuite_AreNotCombined()
         {
             string[] testCaseNamesWithDifferentSuite = { "FooSuite.BarTest", "BarSuite.BazTest1" };

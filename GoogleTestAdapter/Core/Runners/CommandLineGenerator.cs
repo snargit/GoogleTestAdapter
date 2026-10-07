@@ -310,7 +310,9 @@ namespace GoogleTestAdapter.Runners
 
         private string GetTestsuiteName(TestCase testCase)
         {
-            return testCase.FullyQualifiedName.Split('.')[0];
+            // suite names may contain dots (e.g. "Namespace.Suite"), test names may not
+            string fullyQualifiedName = testCase.FullyQualifiedName;
+            return fullyQualifiedName.Substring(0, fullyQualifiedName.LastIndexOf('.'));
         }
 
     }

@@ -99,6 +99,7 @@ namespace GoogleTestAdapter.VsPackage
             InitializeCommands();
             InitializeDebuggerAttacherService();
             DisplayReleaseNotesIfNecessary();
+            WarnIfTestAdapterForGoogleTestIsInstalled();
         }
 
         private void InitializeOptions()

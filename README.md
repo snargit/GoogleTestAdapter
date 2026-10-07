@@ -53,6 +53,8 @@ Google Test Adapter can be installed in three ways:
 
 After restarting VS, your tests will be displayed in the Test Explorer at build completion time. If no or not all tests show up, have a look at the [trouble shooting section](#trouble_shooting).
 
+<a name="tafgt_conflict"></a>Note that Visual Studio's C++ workloads may install Microsoft's *Test Adapter for Google Test* (TAfGT), which is a fork of Google Test Adapter. Both adapters ship assemblies with identical names, so the test platform loads only one of them, and which one is not predictable; if TAfGT wins, your tests are discovered and run by TAfGT, and GTA's options and features (e.g. support for CMake test properties) do not apply. GTA warns at startup if TAfGT is installed. To use GTA, remove the *Test Adapter for Google Test* individual component using the Visual Studio Installer.
+
 Note that due to Microsoft requiring VS extensions to support [asynchronous package loading](https://blogs.msdn.microsoft.com/visualstudio/2018/05/16/improving-the-responsiveness-of-critical-scenarios-by-updating-auto-load-behavior-for-extensions/), the last version of Google Test Adapter which supports Visual Studio 2012 is [0.14.4](https://github.com/csoltenborn/GoogleTestAdapter/releases/tag/v0.14.4).
 
 
@@ -256,6 +258,9 @@ In general, you can identify issues with your test executables by debugging them
 * Make sure *Print debug info* and *Print test output* are `false`.
 
 You might consider using GTA's project settings to switch off symbol parsing and binary scanning for problematic test executables only, thus compromising between speed of test discovery and build maintainability.
+
+##### My tests are run, but GTA's options do not seem to have any effect
+* Microsoft's *Test Adapter for Google Test* is probably installed and runs your tests instead of GTA (see [installation](#tafgt_conflict)). Remove it using the Visual Studio Installer.
 
 ##### The Test Explorer window can not be opened after installing GTA
 * Your MEF cache might have been corrupted. Please refer to [issue #172](https://github.com/csoltenborn/GoogleTestAdapter/issues/172) for help.

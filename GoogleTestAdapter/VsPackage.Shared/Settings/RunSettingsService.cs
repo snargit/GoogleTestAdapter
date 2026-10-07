@@ -61,7 +61,7 @@ namespace GoogleTestAdapter.TestAdapter.Settings
                 projectSettings.GetUnsetValuesFrom(settingsContainer.SolutionSettings);
             }
 
-            GetValuesFromGlobalSettings(settingsContainer);
+            GetValuesFromGlobalSettings(settingsContainer, logger);
 
             runSettingsNavigator.MoveToChild(Constants.RunSettingsName, "");
             runSettingsNavigator.AppendChild(settingsContainer.ToXml().CreateNavigator());
@@ -96,16 +96,20 @@ namespace GoogleTestAdapter.TestAdapter.Settings
             }
         }
 
-        private void GetValuesFromGlobalSettings(RunSettingsContainer settingsContainer)
+        private void GetValuesFromGlobalSettings(RunSettingsContainer settingsContainer, ILogger logger)
         {
-            GetValuesFromGlobalSettings(settingsContainer.SolutionSettings);
+            // the global settings are only updated if GTA's options change, but the solution
+            // and its active configuration might have changed in the meantime
+            var visualStudioConfiguration = GetVisualStudioConfiguration(logger);
+
+            GetValuesFromGlobalSettings(settingsContainer.SolutionSettings, visualStudioConfiguration);
             foreach (RunSettings projectSettings in settingsContainer.ProjectSettings)
             {
-                GetValuesFromGlobalSettings(projectSettings);
+                GetValuesFromGlobalSettings(projectSettings, visualStudioConfiguration);
             }
         }
 
-        private void GetValuesFromGlobalSettings(RunSettings settings)
+        private void GetValuesFromGlobalSettings(RunSettings settings, VisualStudioConfiguration visualStudioConfiguration)
         {
             // these settings must not be provided through runsettings files. If they still
             // are, the following makes sure that they are ignored
@@ -113,11 +117,18 @@ namespace GoogleTestAdapter.TestAdapter.Settings
 
             // internal
             settings.DebuggingNamedPipeId = null;
-            settings.SolutionDir = null;
-            settings.PlatformName = null;
-            settings.ConfigurationName = null;
+            settings.SolutionDir = visualStudioConfiguration?.SolutionDir;
+            settings.PlatformName = visualStudioConfiguration?.PlatformName;
+            settings.ConfigurationName = visualStudioConfiguration?.ConfigurationName;
 
             settings.GetUnsetValuesFrom(_globalRunSettings.RunSettings);
+        }
+
+        // protected for testing
+        protected virtual VisualStudioConfiguration GetVisualStudioConfiguration(ILogger logger)
+        {
+            DTE dte = Package.GetGlobalService(typeof(DTE)) as DTE;
+            return VisualStudioConfiguration.FromDte(dte, message => logger.Log(MessageLevel.Error, message));
         }
 
         // protected for testing

@@ -247,7 +247,8 @@ namespace GoogleTestAdapter.VsPackage
 
         private RunSettings GetRunSettingsFromOptionPages()
         {
-            GetVisualStudioConfiguration(out string solutionDir, out string platformName, out string configurationName);
+            var logger = new ActivityLogLogger(this, () => OutputMode.Verbose);
+            var visualStudioConfiguration = VisualStudioConfiguration.FromDte(GetService(typeof(DTE)) as DTE, logger.LogError);
 
             return new RunSettings
             {
@@ -289,45 +290,12 @@ namespace GoogleTestAdapter.VsPackage
                 MissingTestsReportMode = _testExecutionOptions.MissingTestsReportMode,
 
                 DebuggingNamedPipeId = _debuggingNamedPipeId,
-                SolutionDir = solutionDir,
-                PlatformName = platformName,
-                ConfigurationName = configurationName
+                SolutionDir = visualStudioConfiguration.SolutionDir,
+                PlatformName = visualStudioConfiguration.PlatformName,
+                ConfigurationName = visualStudioConfiguration.ConfigurationName
             };
         }
 
-        private void GetVisualStudioConfiguration(out string solutionDir, out string platformName, out string configurationName)
-        {
-            var logger = new ActivityLogLogger(this, () => OutputMode.Verbose);
-
-            solutionDir = platformName = configurationName = null;
-            try
-            {
-                if (GetService(typeof(DTE)) is DTE dte)
-                {
-                    try
-                    {
-                        solutionDir = SolutionPaths.GetSolutionDir(dte.Solution.FullName);
-                    }
-                    catch (Exception e)
-                    {
-                        logger.LogError($"Exception caught while receiving solution dir from VS instance. dte.Solution.FullName: {dte.Solution.FullName}. Exception:{Environment.NewLine}{e}");
-                    }
-
-                    if (dte.Solution.Projects.Count > 0)
-                    {  
-                        var configurationManager = dte.Solution.Projects.Item(1).ConfigurationManager;  
-                        var activeConfiguration = configurationManager.ActiveConfiguration;
-
-                        platformName = activeConfiguration.PlatformName;
-                        configurationName = activeConfiguration.ConfigurationName;
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                logger.LogError($"Exception while receiving configuration info from Visual Studio.{Environment.NewLine}{e}");
-            }
-        }
     }
 
 }

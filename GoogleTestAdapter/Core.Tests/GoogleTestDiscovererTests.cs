@@ -36,7 +36,6 @@ namespace GoogleTestAdapter
             VerifyExecutableIsTrusted(TestResources.Tests_ReleaseX64);
             VerifyExecutableIsTrusted(TestResources.Tests_DebugX64);
             VerifyExecutableIsTrusted(TestResources.Tests_ReleaseX64);
-            VerifyExecutableIsTrusted(TestResources.Tests_DebugX86_Gtest170);
             VerifyExecutableIsTrusted(TestResources.CrashingTests_ReleaseX86);
             VerifyExecutableIsTrusted(TestResources.CrashingTests_DebugX86);
             VerifyExecutableIsTrusted(TestResources.CrashingTests_ReleaseX64);
@@ -219,13 +218,6 @@ namespace GoogleTestAdapter
         public void GetTestsFromExecutable_SampleTestsRelease_FindsTestsWithLocation()
         {
             FindTests(TestResources.Tests_ReleaseX86);
-        }
-
-        [TestMethod]
-        [TestCategory(Integration)]
-        public void GetTestsFromExecutable_SampleTests170_FindsTestsWithLocation()
-        {
-            FindTests(TestResources.Tests_DebugX86_Gtest170, TestResources.NrOfGtest170CompatibleTests);
         }
 
         [TestMethod]

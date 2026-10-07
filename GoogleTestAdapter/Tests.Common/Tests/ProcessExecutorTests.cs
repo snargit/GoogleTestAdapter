@@ -50,7 +50,7 @@ namespace GoogleTestAdapter.Tests.Common.Tests
 
             exitCode.Should().Be(1);
             output.Should().Contain(s => s.Contains("TestMath.AddPasses"));
-            output.Should().HaveCount(641);
+            output.Should().HaveCount(712);
         }
 
         protected void Test_WithSimpleCommand_ReturnsOutputOfCommand()

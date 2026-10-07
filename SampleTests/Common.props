@@ -10,5 +10,8 @@
         <OutDir>$(EnlistmentRoot)out\binaries\$(SolutionName)\$(Configuration)$(PlatformSuffix)\</OutDir>
         <OutputPath>$(OutDir)</OutputPath>
 
+        <!-- Google Test as provided by the ThirdParty\googletest submodule -->
+        <GoogleTestDir>$(EnlistmentRoot)ThirdParty\googletest\googletest\</GoogleTestDir>
+
     </PropertyGroup>
 </Project>

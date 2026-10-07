@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using FluentAssertions;
 using GoogleTestAdapter.Common;
 using GoogleTestAdapter.Helpers;
@@ -177,6 +179,38 @@ Something's wrong :(";
             results.Should().ContainSingle();
             AssertTestResultIsPassed(results[0]);
             MockLogger.Verify(l => l.LogWarning(It.IsAny<string>()), Times.Once);
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetTestResults_UmlautsInAnsiEncodedFile_FindsResults()
+        {
+            // Google Test claims UTF-8, but writes test names as encoded in the executable
+            const string xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<testsuites tests=""2"" failures=""0"" disabled=""0"" errors=""0"" time=""0."" name=""AllTests"">
+  <testsuite name=""Ümlautß"" tests=""2"" failures=""0"" disabled=""0"" skipped=""0"" errors=""0"" time=""0."">
+    <testcase name=""Täst"" status=""run"" result=""completed"" time=""0."" classname=""Ümlautß"" />
+    <testcase name=""Test"" status=""run"" result=""completed"" time=""0.001"" classname=""Ümlautß"" />
+  </testsuite>
+</testsuites>";
+            string xmlFile = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllBytes(xmlFile, Encoding.Default.GetBytes(xml));
+                IEnumerable<Model.TestCase> testCases = TestDataCreator.CreateDummyTestCases("Ümlautß.Täst", "Ümlautß.Test");
+
+                var parser = new XmlTestResultParser(testCases, "someexecutable", xmlFile, TestEnvironment.Logger);
+                List<Model.TestResult> results = parser.GetTestResults();
+
+                results.Should().HaveCount(2);
+                results.ForEach(AssertTestResultIsPassed);
+                MockLogger.Verify(l => l.LogWarning(It.IsAny<string>()), Times.Never);
+                MockLogger.Verify(l => l.DebugWarning(It.IsAny<string>()), Times.Never);
+            }
+            finally
+            {
+                File.Delete(xmlFile);
+            }
         }
 
 

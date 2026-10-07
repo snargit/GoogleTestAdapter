@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using GoogleTestAdapter.Common;
@@ -104,7 +105,7 @@ namespace GoogleTestAdapter.TestResults
                 var settings = new XmlReaderSettings(); // Don't use an object initializer for FxCop to understand.
 #pragma warning restore IDE0017 // Simplify object initialization
                 settings.XmlResolver = null;
-                using (var reader = XmlReader.Create(_xmlResultFile, settings))
+                using (var reader = XmlReader.Create(new StringReader(ReadXmlResultFile()), settings))
                 {
                     var xmlDocument = new XmlDocument();
                     xmlDocument.Load(reader);
@@ -128,6 +129,22 @@ namespace GoogleTestAdapter.TestResults
             }
 
             return testResults;
+        }
+
+        // Google Test declares the file to be UTF-8 encoded, but writes test names as they are encoded in the
+        // executable (i.e., usually in the system's ANSI code page if the tests have not been compiled with /utf-8)
+        private string ReadXmlResultFile()
+        {
+            byte[] content = File.ReadAllBytes(_xmlResultFile);
+            try
+            {
+                return new UTF8Encoding(false, true).GetString(content).TrimStart('\uFEFF');
+            }
+            catch (DecoderFallbackException)
+            {
+                _logger.DebugInfo($"Test result file {_xmlResultFile} is not UTF-8 encoded, falling back to code page {Encoding.Default.CodePage}");
+                return Encoding.Default.GetString(content);
+            }
         }
 
         private TestResult TryParseTestResult(XmlNode testcaseNode)

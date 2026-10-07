@@ -338,9 +338,11 @@ namespace GoogleTestAdapter.TestAdapter
         }
 
         [TestMethod]
+        [TestCategory(Integration)]
         public override void MemoryLeakTests_FailingWithoutLeaks_CorrectResult()
         {
-            base.MemoryLeakTests_FailingWithoutLeaks_CorrectResult();
+            RunMemoryLeakTest(TestResources.LeakCheckTests_DebugX86, "memory_leaks.failing", VsTestOutcome.Failed, VsTestOutcome.Passed,
+                msg => msg == "");
         }
 
         [TestMethod]

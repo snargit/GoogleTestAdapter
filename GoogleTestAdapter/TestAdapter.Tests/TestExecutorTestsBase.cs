@@ -381,16 +381,8 @@ namespace GoogleTestAdapter.TestAdapter
         [TestCategory(Integration)]
         public virtual void MemoryLeakTests_FailingWithoutLeaks_CorrectResult()
         {
-            try
-            {
-                RunMemoryLeakTest(TestResources.LeakCheckTests_DebugX86, "memory_leaks.failing", VsTestOutcome.Failed, VsTestOutcome.Passed,
-                    msg => msg == "");
-            }
-            catch (MockException)
-            {
-                Assert.Inconclusive("skipped until gtest's 'memory leaks' are fixed...");
-            }
-            Assert.Fail("Memory leak problem has been fixed :-) - enable test!");
+            RunMemoryLeakTest(TestResources.LeakCheckTests_DebugX86, "memory_leaks.failing", VsTestOutcome.Failed, VsTestOutcome.Passed,
+                msg => msg.Contains("No memory leaks have been found."));
         }
 
         [TestMethod]

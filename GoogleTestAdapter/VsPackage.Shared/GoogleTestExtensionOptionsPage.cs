@@ -27,7 +27,10 @@ namespace GoogleTestAdapter.VsPackage
 {
 
     [AsyncPackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
+    // the package must also be loaded if VS is started with a solution or folder, since e.g. debugging tests depends on it
     [Microsoft.VisualStudio.AsyncPackageHelpers.ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string, PackageAutoLoadFlags.BackgroundLoad)]
+    [Microsoft.VisualStudio.AsyncPackageHelpers.ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string, PackageAutoLoadFlags.BackgroundLoad)]
+    [Microsoft.VisualStudio.AsyncPackageHelpers.ProvideAutoLoad(FolderOpenedUIContextString, PackageAutoLoadFlags.BackgroundLoad)]
     [PackageRegistration(UseManagedResourcesOnly = true)]
     [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)] // Info on this package for Help/About
     [Guid(PackageGuidString)]
@@ -40,6 +43,8 @@ namespace GoogleTestAdapter.VsPackage
     public sealed partial class GoogleTestExtensionOptionsPage : Package, IGoogleTestExtensionOptionsPage, IAsyncLoadablePackageInitialize, IDisposable
     {
         private const string PackageGuidString = "e7c90fcb-0943-4908-9ae8-3b6a9d22ec9e";
+        // VSConstants.UICONTEXT.FolderOpened_string, which is not available in the referenced VS SDK
+        private const string FolderOpenedUIContextString = "4646B819-1AE0-4E79-97F4-8A8176FDD664";
 
         private readonly string _debuggingNamedPipeId = Guid.NewGuid().ToString();
 

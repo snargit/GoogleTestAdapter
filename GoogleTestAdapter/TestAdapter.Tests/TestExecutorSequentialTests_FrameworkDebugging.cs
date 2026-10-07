@@ -4,6 +4,7 @@ using System.Diagnostics;
 using GoogleTestAdapter.Common;
 using GoogleTestAdapter.Helpers;
 using GoogleTestAdapter.ProcessExecution;
+using GoogleTestAdapter.Settings;
 using GoogleTestAdapter.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -55,6 +56,17 @@ namespace GoogleTestAdapter.TestAdapter
                         throw new Exception("WTF!");
                     return process.Id;
                 });
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void RunTests_PackageNotLoaded_TestsAreRunAnyway()
+        {
+            MockOptions.Setup(o => o.DebuggingNamedPipeId).Returns((string)null);
+
+            RunAndVerifyTests(TestResources.Tests_ReleaseX64, TestResources.NrOfPassingTests, TestResources.NrOfFailingTests, 0);
+
+            MockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains(SettingsWrapper.OptionDebuggerKind))), Times.Never);
         }
 
         [TestMethod]

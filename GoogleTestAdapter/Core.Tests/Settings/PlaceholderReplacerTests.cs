@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -139,6 +140,46 @@ namespace GoogleTestAdapter.Settings
                 result.Should().Be(placeholder);
                 mockLogger.Verify(l => l.LogWarning(It.Is<string>(msg => msg.Contains(placeholder))), Times.Once);
             }
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void AllReplacementMethods_UndefinedEnvironmentVariableResultsInWarning()
+        {
+            Mock<HelperFilesCache> mockHelperFilesCache = new Mock<HelperFilesCache>();
+            mockHelperFilesCache.Setup(c => c.GetReplacementsMap(It.IsAny<string>()))
+                .Returns(new Dictionary<string, string>());
+            Mock<IGoogleTestAdapterSettings> mockOptions = new Mock<IGoogleTestAdapterSettings>();
+            Mock<ILogger> mockLogger = new Mock<ILogger>();
+            var replacer = new PlaceholderReplacer(() => "solutiondir", () => mockOptions.Object,
+                mockHelperFilesCache.Object, mockLogger.Object);
+
+            string variable = "%GTA_UNDEFINED_ENVIRONMENT_VARIABLE%";
+            foreach (string methodName in MethodNames)
+            {
+                mockLogger.Reset();
+                string result = InvokeMethodWithStandardParameters(replacer, methodName, variable);
+                result.Should().Be(variable);
+                mockLogger.Verify(l => l.LogWarning(It.Is<string>(msg => msg.Contains(variable) && msg.Contains("environment variables"))), Times.Once);
+            }
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void ReplacePathExtensionPlaceholders_DefinedEnvironmentVariable_IsReplacedWithoutWarning()
+        {
+            Mock<HelperFilesCache> mockHelperFilesCache = new Mock<HelperFilesCache>();
+            mockHelperFilesCache.Setup(c => c.GetReplacementsMap(It.IsAny<string>()))
+                .Returns(new Dictionary<string, string>());
+            Mock<IGoogleTestAdapterSettings> mockOptions = new Mock<IGoogleTestAdapterSettings>();
+            Mock<ILogger> mockLogger = new Mock<ILogger>();
+            var replacer = new PlaceholderReplacer(() => "solutiondir", () => mockOptions.Object,
+                mockHelperFilesCache.Object, mockLogger.Object);
+
+            string result = replacer.ReplacePathExtensionPlaceholders(@"%SystemRoot%\bin", "foo.exe");
+
+            result.Should().Be(Environment.GetEnvironmentVariable("SystemRoot") + @"\bin");
+            mockLogger.Verify(l => l.LogWarning(It.IsAny<string>()), Times.Never);
         }
 
         private string InvokeMethodWithStandardParameters(PlaceholderReplacer placeholderReplacer, string methodName,

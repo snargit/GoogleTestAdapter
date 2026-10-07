@@ -36,6 +36,7 @@ namespace GoogleTestAdapter.Settings
 
 
         private static readonly Regex PlaceholdersRegex = new Regex(@"\$\(\w+\)", RegexOptions.Compiled);
+        private static readonly Regex EnvironmentVariablesRegex = new Regex(@"%\w+%", RegexOptions.Compiled);
 
         private readonly Func<string> _getSolutionDir;
         private readonly Func<IGoogleTestAdapterSettings> _getSettings;
@@ -343,6 +344,15 @@ namespace GoogleTestAdapter.Settings
 
                 var placeholders = matches.Cast<Match>().Select(m => m.Value).Distinct().OrderBy(s => s);
                 string message = $"Option '{optionName}': Apparently, the following placeholders could not be replaced. {string.Join(", ", placeholders)}";
+                _logger.LogWarning(message);
+            }
+
+            // Environment.ExpandEnvironmentVariables() leaves references to undefined variables untouched
+            matches = EnvironmentVariablesRegex.Matches(theString);
+            if (matches.Count > 0)
+            {
+                var variables = matches.Cast<Match>().Select(m => m.Value).Distinct().OrderBy(s => s);
+                string message = $"Option '{optionName}': Apparently, the following environment variables are not defined and could not be replaced. {string.Join(", ", variables)}";
                 _logger.LogWarning(message);
             }
         }

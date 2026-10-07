@@ -91,7 +91,7 @@ namespace GoogleTestAdapter
 
             if (string.IsNullOrWhiteSpace(customRegex))
             {
-                if (PeParser.FindImport(executable, GoogleTestConstants.GoogleTestDllMarker, StringComparison.OrdinalIgnoreCase, logger)
+                if (PeParser.ParseImports(executable, logger).Any(IsGoogleTestDll)
                     || Utils.BinaryFileContainsStrings(executable, Encoding.ASCII, GoogleTestConstants.GoogleTestExecutableMarkers))
                 {
                     logger.DebugInfo($"Google Test indicators found in executable {executable}");
@@ -109,6 +109,11 @@ namespace GoogleTestAdapter
 
             logger.DebugInfo($"File does not seem to be Google Test executable: '{executable}'");
             return false;
+        }
+
+        public static bool IsGoogleTestDll(string import)
+        {
+            return GoogleTestConstants.GoogleTestDllMarkers.Contains(import, StringComparer.OrdinalIgnoreCase);
         }
 
         private static bool SafeMatches(string executable, string regex, ILogger logger)

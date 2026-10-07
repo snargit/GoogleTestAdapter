@@ -30,7 +30,15 @@ namespace GoogleTestAdapter
         public const string ParameterizedTestMarker = "  # GetParam() = ";
         public const string TypedTestMarker = ".  # TypeParam = ";
 
-        public const string GoogleTestDllMarker = "gtest.dll";
+        // gmock and gmock_main contain Google Test, i.e., executables linking gmock do not import gtest.dll;
+        // debug builds might use a postfix (e.g. CMAKE_DEBUG_POSTFIX "d")
+        public static readonly string[] GoogleTestDllMarkers =
+        {
+            "gtest.dll", "gtestd.dll",
+            "gtest_main.dll", "gtest_maind.dll",
+            "gmock.dll", "gmockd.dll",
+            "gmock_main.dll", "gmock_maind.dll"
+        };
 
         public static readonly string[] GoogleTestExecutableMarkers =
         {

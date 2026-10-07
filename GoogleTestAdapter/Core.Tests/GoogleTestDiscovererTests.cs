@@ -64,6 +64,23 @@ namespace GoogleTestAdapter
 
         [TestMethod]
         [TestCategory(Unit)]
+        public void IsGoogleTestDll_GoogleTestAndGoogleMockDlls_AreRecognized()
+        {
+            GoogleTestDiscoverer.IsGoogleTestDll("gtest.dll").Should().BeTrue();
+            GoogleTestDiscoverer.IsGoogleTestDll("GTEST.DLL").Should().BeTrue();
+            GoogleTestDiscoverer.IsGoogleTestDll("gtestd.dll").Should().BeTrue();
+            GoogleTestDiscoverer.IsGoogleTestDll("gtest_main.dll").Should().BeTrue();
+            GoogleTestDiscoverer.IsGoogleTestDll("gmock.dll").Should().BeTrue();
+            GoogleTestDiscoverer.IsGoogleTestDll("gmockd.dll").Should().BeTrue();
+            GoogleTestDiscoverer.IsGoogleTestDll("gmock_maind.dll").Should().BeTrue();
+
+            GoogleTestDiscoverer.IsGoogleTestDll("kernel32.dll").Should().BeFalse();
+            GoogleTestDiscoverer.IsGoogleTestDll("gtest_helper.dll").Should().BeFalse();
+            GoogleTestDiscoverer.IsGoogleTestDll("mygtest.dll").Should().BeFalse();
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
         public void IsGoogleTestExecutable_WithUnparsableRegexFromOptions_ProducesErrorMessage()
         {
             bool result = GoogleTestDiscoverer.IsGoogleTestExecutable("my.exe", "d[ddd[", TestEnvironment.Logger);

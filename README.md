@@ -3,6 +3,28 @@
 [![Visual Studio Marketplace downloads](https://img.shields.io/badge/vs_marketplace-52k-blue.svg)](https://marketplace.visualstudio.com/items?itemName=ChristianSoltenborn.GoogleTestAdapter)
 [![NuGet downloads](https://img.shields.io/nuget/dt/GoogleTestAdapter.svg?colorB=0c7dbe&label=nuget)](https://www.nuget.org/packages/GoogleTestAdapter)
 
+# About this fork
+
+This fork of [Google Test Adapter](https://github.com/csoltenborn/GoogleTestAdapter) supports **Visual Studio 2022 and Visual Studio 2026** (in addition to the Visual Studio versions supported by the original project), and treats CMake projects as first-class citizens alongside Visual Studio projects. Note that the downloads linked in the [installation section](#installation) (Visual Studio Marketplace, NuGet, and the original project's GitHub releases) refer to the original version 0.18.0, which contains none of the changes below.
+
+Changes compared to the original project:
+
+* **Visual Studio 2022 and 2026**
+  * The VSIX can be installed into VS 2022 (17.x) and VS 2026 (18.x); GTA and its sample projects build with the v143/v145 toolsets
+  * Updated to Google Test 1.18.0 (including the Google Test NuGet packages, which now require C++17 and support the v143/v145 toolsets; the rt-static packages are now actually built against the static CRT)
+  * The Google Test project template uses the default platform toolset of the installed Visual Studio
+  * GTA warns if Microsoft's *Test Adapter for Google Test* is installed, since it [prevents GTA from being used](#tafgt_conflict)
+* **[CMake projects](#cmake)**
+  * The CTest test properties `LABELS` (assigned as `Label` traits), `DISABLED` (tests reported as skipped), `TIMEOUT` (tests killed after their timeout), `WORKING_DIRECTORY`, and `ENVIRONMENT` are honored, both within Visual Studio and with `VSTest.Console.exe`; this can be switched off with option *Use CTest test properties*
+  * The [solution settings file](#solution_settings) and `$(SolutionDir)` are supported if a folder has been opened instead of a solution (Open Folder mode)
+  * Test executables linking Google Test or Google Mock as DLLs (`gtest`, `gtest_main`, `gmock`, `gmock_main`, optionally with debug postfix `d`) are discovered
+* **Bug fixes**
+  * Test executables with paths not representable in the ANSI code page (e.g. containing Chinese characters on a Western system) are discovered (based on upstream PR [#288](https://github.com/csoltenborn/GoogleTestAdapter/pull/288))
+  * Test suites with dots in their names no longer cause tests of other suites to be run (upstream [#330](https://github.com/csoltenborn/GoogleTestAdapter/pull/330))
+  * Test case filters on traits with multiple values (e.g. `Label=slow`) now match
+  * More reliable killing of test processes on cancellation
+
+
 # Looking for a Maintainer
 
 As you might have noticed, this project is not maintained any more (I have moved to different technologies and are not even working as a developer any more). Since it still has a few features which the [MS clone](https://github.com/microsoft/TestAdapterForGoogleTest) (which is still developed and delivered with Visual Studio) does not support, there still seems to be some interest in the project. Thus, if anybody wants to take over this project, please get in touch - I will certainly try to get you up and running!

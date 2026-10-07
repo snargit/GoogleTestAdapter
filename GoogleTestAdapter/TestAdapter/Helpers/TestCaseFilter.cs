@@ -125,8 +125,9 @@ namespace GoogleTestAdapter.TestAdapter.Helpers
                 .Select(t => t.Value)
                 .ToList();
 
+            // the test platform expects multiple values as string array
             if (traitValues.Count > 1)
-                return traitValues;
+                return traitValues.ToArray();
 
             return traitValues.SingleOrDefault();
         }

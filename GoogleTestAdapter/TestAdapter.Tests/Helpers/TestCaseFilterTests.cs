@@ -176,6 +176,24 @@ namespace GoogleTestAdapter.TestAdapter.Helpers
             action.Should().Throw<ArgumentException>().WithMessage("MyTrait");
         }
 
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void Filter_TraitWithMultipleValues_ValuesAreProvidedAsStringArray()
+        {
+            List<TestCase> testCases = TestDataCreator.CreateDummyTestCases("Foo.Bar", "Foo.Baz").Select(tc => tc.ToVsTestCase()).ToList();
+            testCases[0].Traits.Add(new Trait("Label", "unit"));
+            testCases[0].Traits.Add(new Trait("Label", "slow"));
+            testCases[1].Traits.Add(new Trait("Label", "unit"));
+            _mockFilterExpression.Setup(e => e.MatchTestCase(It.IsAny<TestCase>(), It.IsAny<Func<string, object>>()))
+                .Returns<TestCase, Func<string, object>>((tc, f) => f("Label") is string[] values && values.Contains("slow"));
+            _traitNames.Add("Label");
+
+            TestCaseFilter filter = new TestCaseFilter(MockRunContext.Object, _traitNames, TestEnvironment.Logger);
+            IEnumerable<TestCase> filteredTestCases = filter.Filter(testCases).ToList();
+
+            AssertAreEqual(testCases.Take(1), filteredTestCases);
+        }
+
         private void SetupFilterToAcceptTraitForTestCase(TestCase testCase, string traitName, string traitValue)
         {
             _mockFilterExpression.Setup(e => e.MatchTestCase(It.Is<TestCase>(tc => tc == testCase), It.Is<Func<string, object>>(f => f(traitName).ToString() == traitValue))).Returns(true);

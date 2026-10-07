@@ -303,7 +303,7 @@ namespace GoogleTestAdapter.Runners
                     executable, arguments.CommandLine, workingDir, pathExtension, environmentVariables,
                     isTestOutputAvailable ? (Action<string>) OnNewOutputLine : null);
             }
-            streamingParser.Flush();
+            streamingParser.Flush(exitCode);
 
             ExecutableResults.Add(new ExecutableResult(executable, exitCode, streamingParser.ExitCodeOutput,
                 streamingParser.ExitCodeSkip));

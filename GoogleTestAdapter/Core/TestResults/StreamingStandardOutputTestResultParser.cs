@@ -54,6 +54,7 @@ namespace GoogleTestAdapter.TestResults
         }
         private volatile RunningTest _runningTest;
         private TimeSpan _timeout;
+        private int? _exitCode;
 
         static StreamingStandardOutputTestResultParser()
         {
@@ -129,8 +130,10 @@ namespace GoogleTestAdapter.TestResults
             _consoleOutput.Add(line);
         }
 
-        public void Flush()
+        /// <param name="exitCode">the exit code of the test executable, which is added to the error message of a crashed test</param>
+        public void Flush(int? exitCode = null)
         {
+            _exitCode = exitCode;
             if (_consoleOutput.Count > 0)
             {
                 if (_isParsingExitCodeOutput)
@@ -261,13 +264,19 @@ namespace GoogleTestAdapter.TestResults
             if (!isTimedOut)
                 CrashedTestCase = testCase;
 
-            string message = isTimedOut ? CreateTimeoutText(_timeout) : CrashText;
+            string message = isTimedOut ? CreateTimeoutText(_timeout) : CrashText + CreateExitCodeText(_exitCode);
             message += testOutput == "" ? "" : $"\nTest output:\n\n{testOutput}";
             return CreateFailedTestResult(
                 testCase,
                 isTimedOut ? _timeout : TimeSpan.FromMilliseconds(0),
                 message,
                 "");
+        }
+
+        // exit codes of crashes are usually NTSTATUS codes, e.g. 0xC0000005 for an access violation
+        public static string CreateExitCodeText(int? exitCode)
+        {
+            return exitCode.HasValue ? $" (exit code {exitCode.Value}, i.e. 0x{exitCode.Value:X8})" : "";
         }
 
         private TimeSpan ParseDuration(string line, ILogger logger)

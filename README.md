@@ -26,6 +26,7 @@ Changes compared to the original project:
   * New [trait macros](#trait_macros) header `GTA_Traits_1.18.0.h` for recent versions of Google Test, which `GTA_Traits_1.8.0.h` does not compile with (upstream #349); [`GTA_Traits.md`](GoogleTestAdapter/Core/Resources/GTA_Traits.md) describes how to create the header for other versions of Google Test
   * Test results are no longer lost if Google Test writes test names with non-ASCII characters (e.g. umlauts) to its XML result file in the system's ANSI code page instead of the declared UTF-8, which happens with recent versions of Google Test if the tests are not compiled with `/utf-8` (e.g., when debugging tests with debugger engine *VsTest framework*)
   * Tests compiled with `/utf-8` are now supported: GTA decodes the output of test executables as UTF-8 (falling back to the system's ANSI code page), and test filters also match test names with non-ASCII characters if these are UTF-8 encoded (new sample project `Utf8Tests`)
+  * The error message of a crashed test contains the exit code of the test executable, e.g. `!! This test has probably CRASHED !! (exit code -1073741819, i.e. 0xC0000005)` (upstream #358)
   * More reliable killing of test processes on cancellation
   * The Google Test NuGet packages link the debug or release libraries depending on the project's *Use Debug Libraries* setting, so they also work with configurations not named `Debug` or `Release` (upstream #356); the choice can be overridden with property `<package name with dashes>-LibraryConfiguration`
 

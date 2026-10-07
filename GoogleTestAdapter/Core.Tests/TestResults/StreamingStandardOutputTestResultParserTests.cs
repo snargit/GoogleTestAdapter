@@ -110,9 +110,33 @@ namespace GoogleTestAdapter.TestResults
             XmlTestResultParserTests.AssertTestResultIsFailure(results[1]);
             results[1].ErrorMessage.Should().Contain(StreamingStandardOutputTestResultParser.CrashText);
             results[1].ErrorMessage.Should().NotContain("Test output:");
+            results[1].ErrorMessage.Should().NotContain("exit code");
             results[1].Duration.Should().Be(TimeSpan.FromMilliseconds(0));
 
             CheckStandardOutputResultParser(cases, consoleOutput, results, parser.CrashedTestCase);
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetTestResults_OutputWithImmediateCrashAndExitCode_CrashTextContainsExitCode()
+        {
+            string[] consoleOutput = {
+                @"[==========] Running 3 tests from 1 test case.",
+                @"[----------] Global test environment set-up.",
+                @"[----------] 3 tests from TestMath",
+                @"[ RUN      ] TestMath.AddPasses"
+            };
+            var cases = GetTestCases();
+
+            var parser = new StreamingStandardOutputTestResultParser(cases, MockLogger.Object, MockFrameworkReporter.Object);
+            consoleOutput.ToList().ForEach(parser.ReportLine);
+            parser.Flush(-1073741819);
+            IList<TestResult> results = parser.TestResults;
+
+            results.Should().ContainSingle();
+            results[0].TestCase.FullyQualifiedName.Should().Be("TestMath.AddPasses");
+            XmlTestResultParserTests.AssertTestResultIsFailure(results[0]);
+            results[0].ErrorMessage.Should().Be(StreamingStandardOutputTestResultParser.CrashText + " (exit code -1073741819, i.e. 0xC0000005)");
         }
 
         [TestMethod]

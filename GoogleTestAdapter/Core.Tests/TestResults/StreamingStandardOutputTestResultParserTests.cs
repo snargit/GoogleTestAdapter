@@ -302,7 +302,7 @@ namespace GoogleTestAdapter.TestResults
 
         [TestMethod]
         [TestCategory(Unit)]
-        public void GetTestResults_OutputWithConsoleOutput_ConsoleOutputIsIgnored()
+        public void GetTestResults_OutputWithConsoleOutput_ConsoleOutputIsStandardOutputOfResult()
         {
             string[] consoleOutput = {
                 @"[==========] Running 1 tests from 1 test case.",
@@ -327,6 +327,7 @@ namespace GoogleTestAdapter.TestResults
             results.Should().ContainSingle();
             results[0].TestCase.FullyQualifiedName.Should().Be("TestMath.AddPasses");
             XmlTestResultParserTests.AssertTestResultIsPassed(results[0]);
+            results[0].StandardOutput.Should().Be("Some output produced by the exe\n");
 
             CheckStandardOutputResultParser(cases, consoleOutput, results, parser.CrashedTestCase);
         }
@@ -638,6 +639,35 @@ Expected: true
             XmlTestResultParserTests.AssertTestResultIsFailure(result);
 
             CheckStandardOutputResultParser(cases, consoleOutput, results, parser.CrashedTestCase);
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetTestResults_OutputWithSkippedTestWithMessage_MessageIsStandardOutputOfResult()
+        {
+            string[] consoleOutput = {
+                @"[==========] Running 1 test from 1 test suite.",
+                @"[----------] 1 test from Test",
+                @"[ RUN      ] Test.Skip",
+                @"C:\...\test.cpp(9): Skipped",
+                @"Not supported on this platform",
+                @"[  SKIPPED ] Test.Skip (0 ms)",
+                @"[----------] 1 test from Test (1 ms total)",
+            };
+            var cases = new List<TestCase>
+            {
+                TestDataCreator.ToTestCase("Test.Skip", TestDataCreator.DummyExecutable, @"c:\somepath\source.cpp"),
+            };
+
+            var parser = new StreamingStandardOutputTestResultParser(cases, MockLogger.Object, MockFrameworkReporter.Object);
+            consoleOutput.ToList().ForEach(parser.ReportLine);
+            parser.Flush();
+
+            parser.TestResults.Should().ContainSingle();
+            XmlTestResultParserTests.AssertTestResultIsSkipped(parser.TestResults[0]);
+            parser.TestResults[0].StandardOutput.Should().Be(@"C:\...\test.cpp(9): Skipped" + "\nNot supported on this platform\n");
+
+            CheckStandardOutputResultParser(cases, consoleOutput, parser.TestResults, parser.CrashedTestCase);
         }
 
         [TestMethod]

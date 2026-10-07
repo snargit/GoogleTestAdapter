@@ -237,14 +237,22 @@ namespace GoogleTestAdapter.TestResults
             }
             if (IsPassedLine(line))
             {
-                return CreatePassedTestResult(testCase, ParseDuration(line, _logger));
+                return WithStandardOutput(CreatePassedTestResult(testCase, ParseDuration(line, _logger)), errorMsg);
             }
             if (IsSkippedLine(line))
             {
-                return CreateSkippedTestResult(testCase, ParseDuration(line, _logger));
+                return WithStandardOutput(CreateSkippedTestResult(testCase, ParseDuration(line, _logger)), errorMsg);
             }
 
             return CreateCrashedOrTimedOutTestResult(testCase, errorMsg);
+        }
+
+        // the output of failed tests is part of their error message
+        private static TestResult WithStandardOutput(TestResult testResult, string testOutput)
+        {
+            if (testOutput != "")
+                testResult.StandardOutput = testOutput;
+            return testResult;
         }
 
         private TestResult CreateCrashedOrTimedOutTestResult(TestCase testCase, string testOutput)

@@ -104,6 +104,7 @@
     <Compile Include="Settings\HelperFileTests.cs" />
     <Compile Include="Settings\RunSettingsContainerTests.cs" />
     <Compile Include="CommonFunctionsTests.cs" />
+    <Compile Include="DataConversionExtensionsTests.cs" />
     <Compile Include="TestExecutorSequentialTests_NativeDebugging.cs" />
     <Compile Include="TestExecutorSequentialTests_FrameworkDebugging.cs" />
     <Compile Include="TestExecutorTestsBase.cs" />

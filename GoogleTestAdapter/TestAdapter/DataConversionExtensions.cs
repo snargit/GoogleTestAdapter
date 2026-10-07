@@ -10,6 +10,7 @@ using Trait = GoogleTestAdapter.Model.Trait;
 using VsTestCase = Microsoft.VisualStudio.TestPlatform.ObjectModel.TestCase;
 using VsTestProperty = Microsoft.VisualStudio.TestPlatform.ObjectModel.TestProperty;
 using VsTestResult = Microsoft.VisualStudio.TestPlatform.ObjectModel.TestResult;
+using VsTestResultMessage = Microsoft.VisualStudio.TestPlatform.ObjectModel.TestResultMessage;
 using VsTestOutcome = Microsoft.VisualStudio.TestPlatform.ObjectModel.TestOutcome;
 using VsTrait = Microsoft.VisualStudio.TestPlatform.ObjectModel.Trait;
 
@@ -71,7 +72,7 @@ namespace GoogleTestAdapter.TestAdapter
 
         public static VsTestResult ToVsTestResult(this TestResult testResult)
         {
-            return new VsTestResult(ToVsTestCase(testResult.TestCase))
+            var vsTestResult = new VsTestResult(ToVsTestCase(testResult.TestCase))
             {
                 Outcome = testResult.Outcome.ToVsTestOutcome(),
                 ComputerName = testResult.ComputerName,
@@ -80,6 +81,9 @@ namespace GoogleTestAdapter.TestAdapter
                 ErrorMessage = testResult.ErrorMessage,
                 ErrorStackTrace = testResult.ErrorStackTrace
             };
+            if (!string.IsNullOrEmpty(testResult.StandardOutput))
+                vsTestResult.Messages.Add(new VsTestResultMessage(VsTestResultMessage.StandardOutCategory, testResult.StandardOutput));
+            return vsTestResult;
         }
 
 

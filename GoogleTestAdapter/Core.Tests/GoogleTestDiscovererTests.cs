@@ -45,6 +45,28 @@ namespace GoogleTestAdapter
             VerifyExecutableIsTrusted(TestResources.AlwaysFailingExe);
         }
 
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void VerifyExecutableTrust_ExecutableOnNetworkShare_IsNotTrustedAndErrorNamesOption()
+        {
+            GoogleTestDiscoverer.VerifyExecutableTrust(@"\\gta-nonexisting-host\share\Tests.exe", MockOptions.Object, MockLogger.Object)
+                .Should().BeFalse();
+
+            MockLogger.Verify(l => l.LogError(It.Is<string>(s => s.Contains(SettingsWrapper.OptionSkipOriginCheck))), Times.Once);
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void VerifyExecutableTrust_ExecutableOnNetworkShareAndSkipOriginCheck_IsTrusted()
+        {
+            MockOptions.Setup(o => o.SkipOriginCheck).Returns(true);
+
+            GoogleTestDiscoverer.VerifyExecutableTrust(@"\\gta-nonexisting-host\share\Tests.exe", MockOptions.Object, MockLogger.Object)
+                .Should().BeTrue();
+
+            MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
+        }
+
         private void VerifyExecutableIsTrusted(string executable)
         {
             executable = Path.GetFullPath(executable);

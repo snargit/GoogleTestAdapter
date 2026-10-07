@@ -142,7 +142,9 @@ namespace GoogleTestAdapter
             var zone = Zone.CreateFromUrl(executable);
             if (zone.SecurityZone != System.Security.SecurityZone.MyComputer)
             {
-                logger.LogError("Executable " + executable + " came from another computer and was blocked to help protect this computer.");
+                logger.LogError($"Executable {executable} came from another computer and was blocked to help protect this computer. " +
+                                $"If you trust the executable, set option '{SettingsWrapper.OptionSkipOriginCheck}' (Tools/Options/Google Test Adapter/{SettingsWrapper.PageGeneralName}/{SettingsWrapper.CategorySecurityName}; can not be set via settings files) " +
+                                "or, if the executable has been downloaded, unblock it via the file's properties.");
                 return false;
             }
             return true;

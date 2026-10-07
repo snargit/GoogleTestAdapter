@@ -39,13 +39,13 @@ Google Test Adapter (GTA) is a Visual Studio extension providing test discovery 
 #### Features
 
 * Sequential and [parallel](#parallelization) test execution
-* [Traits](http://blogs.msdn.com/b/visualstudioalm/archive/2012/11/09/how-to-manage-unit-tests-in-visual-studio-2012-update-1-part-1-using-traits-in-the-unit-test-explorer.aspx) support by means of [custom C++ macros](#trait_macros) and/or [trait assignment by regexes](#trait_regexes)
+* [Traits](https://devblogs.microsoft.com/devops/how-to-manage-unit-tests-in-visual-studio-2012-update-1-part-1using-traits-in-the-unit-test-explorer/) support by means of [custom C++ macros](#trait_macros) and/or [trait assignment by regexes](#trait_regexes)
 * Support for [value-parameterized](https://github.com/google/googletest/blob/master/googletest/docs/advanced.md#value-parameterized-tests), [typed](https://github.com/google/googletest/blob/master/googletest/docs/advanced.md#typed-tests), and [type-parameterized](https://github.com/google/googletest/blob/master/googletest/docs/advanced.md#type-parameterized-tests) tests
 * Google Test's runtime behavior ([handling of exceptions](https://github.com/google/googletest/blob/master/googletest/docs/advanced.md#disabling-catching-test-thrown-exceptions), [break on assertion failure](https://github.com/google/googletest/blob/master/googletest/docs/advanced.md#turning-assertion-failures-into-break-points)) can be controlled via [VS options](#global_settings)
 * Most important runtime options can be controlled via [toolbar](#toolbar) without entering VS's options
 * Support for all Google Test command line options, including [test shuffling](https://github.com/google/googletest/blob/master/googletest/docs/advanced.md#shuffling-the-tests) and [test repetition](https://github.com/google/googletest/blob/master/googletest/docs/advanced.md#repeating-the-tests)
-* [TFS support](#vstest_console) by means of [`VSTest.Console.exe`](https://msdn.microsoft.com/en-us/library/jj155800.aspx)
-* [Support](#test_case_filters) for [test case filters](http://blogs.msdn.com/b/vikramagrawal/archive/2012/07/23/running-selective-unit-tests-in-vs-2012-rc-using-testcasefilter.aspx)
+* [TFS support](#vstest_console) by means of [`VSTest.Console.exe`](https://learn.microsoft.com/en-us/visualstudio/test/vstest-console-options)
+* [Support](#test_case_filters) for [test case filters](https://github.com/microsoft/vstest/blob/main/docs/filter.md)
 * Failed assertions and [SCOPED_TRACE](https://github.com/google/googletest/blob/master/googletest/docs/advanced.md#adding-traces-to-assertions)s are linked to their source locations
 * Identification of crashed tests
 * Test output can be piped to test console
@@ -78,7 +78,7 @@ After restarting VS, your tests will be displayed in the Test Explorer at build 
 
 <a name="tafgt_conflict"></a>Note that Visual Studio's C++ workloads may install Microsoft's *Test Adapter for Google Test* (TAfGT), which is a fork of Google Test Adapter. Both adapters ship assemblies with identical names, so the test platform loads only one of them, and which one is not predictable; if TAfGT wins, your tests are discovered and run by TAfGT, and GTA's options and features (e.g. support for CMake test properties) do not apply. GTA warns at startup if TAfGT is installed. To use GTA, remove the *Test Adapter for Google Test* individual component using the Visual Studio Installer.
 
-Note that due to Microsoft requiring VS extensions to support [asynchronous package loading](https://blogs.msdn.microsoft.com/visualstudio/2018/05/16/improving-the-responsiveness-of-critical-scenarios-by-updating-auto-load-behavior-for-extensions/), the last version of Google Test Adapter which supports Visual Studio 2012 is [0.14.4](https://github.com/csoltenborn/GoogleTestAdapter/releases/tag/v0.14.4).
+Note that due to Microsoft requiring VS extensions to support [asynchronous package loading](https://devblogs.microsoft.com/visualstudio/improving-the-responsiveness-of-critical-scenarios-by-updating-auto-load-behavior-for-extensions/), the last version of Google Test Adapter which supports Visual Studio 2012 is [0.14.4](https://github.com/csoltenborn/GoogleTestAdapter/releases/tag/v0.14.4).
 
 
 #### <a name="gta_configuration"></a>Configuration
@@ -86,8 +86,8 @@ Note that due to Microsoft requiring VS extensions to support [asynchronous pack
 GTA provides different ways of configuration:
 * <a name="global_settings"></a>The *Google Test Adapter* section of Visual Studio's *Tools/Options* (not available if installed via NuGet). These options are referred to as *global options* in the following.
 * <a name="toolbar"></a>The GTA toolbar (not available if installed via NuGet). The most important runtime options (i.e., *Parallel test execution*, *Break on failure*, *Catch exceptions*, and *Print test output*) can also be set via a toolbar; this is equivalent to setting the according options via *Tools/Options/Google Test Adapter*.
-* <a name="solution_settings"></a>Solution settings files (not available if run via [VsTest.Console.exe](https://msdn.microsoft.com/en-us/library/jj155800.aspx)). They are provided by means of an XML configuration file; this allows sharing of settings via source control. The configuration file must be placed in the same folder as the solution's `.sln` file, and must have the same name as that file, but with extension `.gta.runsettings`. E.g., if the solution file's name is `Foo.sln`, the settings file must be named `Foo.gta.runsettings`. If a folder has been opened instead of a solution (e.g., a CMake project), the settings file must be placed in that folder and be named after it (e.g., `Foo.gta.runsettings` for folder `Foo`); alternatively, the folder may contain exactly one file with extension `.gta.runsettings`. In this case, `$(SolutionDir)` refers to the opened folder.
-* Visual Studio user settings files. VS allows for the selection of [test settings](https://msdn.microsoft.com/en-us/library/jj635153.aspx) files via the *Test/Test Settings* menu, and to pass such settings files to `VsTest.Console.exe` via the `/Settings` parameter.
+* <a name="solution_settings"></a>Solution settings files (not available if run via [VsTest.Console.exe](https://learn.microsoft.com/en-us/visualstudio/test/vstest-console-options)). They are provided by means of an XML configuration file; this allows sharing of settings via source control. The configuration file must be placed in the same folder as the solution's `.sln` file, and must have the same name as that file, but with extension `.gta.runsettings`. E.g., if the solution file's name is `Foo.sln`, the settings file must be named `Foo.gta.runsettings`. If a folder has been opened instead of a solution (e.g., a CMake project), the settings file must be placed in that folder and be named after it (e.g., `Foo.gta.runsettings` for folder `Foo`); alternatively, the folder may contain exactly one file with extension `.gta.runsettings`. In this case, `$(SolutionDir)` refers to the opened folder.
+* Visual Studio user settings files. VS allows for the selection of [test settings](https://learn.microsoft.com/en-us/visualstudio/test/configure-unit-tests-by-using-a-dot-runsettings-file) files via the *Test/Test Settings* menu, and to pass such settings files to `VsTest.Console.exe` via the `/Settings` parameter.
 * Environment variable `GTA_FALLBACK_SETTINGS`. The settings file referred to from that environment variable will be used *only* if GTA fails to receive settings from the VS test framework; currently, this is only known to happen when running GTA through `VsTest.Console.exe` on VS 2017 V15.5 and later (see #184).
 
 The format of solution and user settings files is the same: a `<GoogleTestAdapterSettings>` node contains the solution settings and the (possibly empty) set of project settings and is itself contained in a `<RunSettings>` node (which in the case of user settings files might contain additional, e.g. VS specific settings). In contrast to solution settings, each set of project settings additionally has a regular expression to be evaluated at test discovery and execution time.
@@ -103,9 +103,36 @@ Overall, given a test executable `mytests.exe`, the following settings apply to 
 4. Solution settings of a solution settings file.
 5. Global settings.
 
+<a name="skip_origin_check"></a>Option *Skip check of file origin* (*Tools/Options/Google Test Adapter/General/Security*) is an exception: for security reasons, it can only be set via the global options and is ignored if provided by solution or user settings files (in particular, it can not be set if GTA has been installed via NuGet or is run via `VSTest.Console.exe`). If it is not set, GTA does not run test executables which Windows considers to originate from another computer (e.g. downloaded files which have not been unblocked, or files located on a network drive), but reports an error instead.
+
 Note that due to the overriding hierarchy described above, you probably want to provide only a subset of the nodes in your configuration files. For instance, providing the node `<DebugMode>true</DebugMode>` in a shared solution settings file will make sure that all sharing developers will run GTA with debug output, no matter what the developer's individual settings at *Tools/Options/Google Test Adapter* are (and unless the developer has selected a test settings file via VS, which would override the solution setting).
 
 For reference, see a settings file [AllTestSettings.gta.runsettings](https://raw.githubusercontent.com/csoltenborn/GoogleTestAdapter/master/GoogleTestAdapter/Resources/AllTestSettings.gta.runsettings) containing all available settings, a more realistic solution settings file [SampleTests.gta.runsettings](https://raw.githubusercontent.com/csoltenborn/GoogleTestAdapter/master/SampleTests/SampleTests.gta.runsettings) as delivered with the SampleTests solution, and a user settings file [NonDeterministic.runsettings](https://raw.githubusercontent.com/csoltenborn/GoogleTestAdapter/master/SampleTests/NonDeterministic.runsettings) as used by GTA's end-to-end tests. The syntax of the GTA settings files (excluding the `<RunSettings>` node) is specified by [this schema](https://raw.githubusercontent.com/csoltenborn/GoogleTestAdapter/master/GoogleTestAdapter/TestAdapter/GoogleTestAdapterSettings.xsd).
+
+##### <a name="gtest_options"></a>Passing Google Test options to the test executables
+
+Google Test options not provided by GTA (e.g., `--gtest_output` for generating test reports) can be passed to the test executables by means of option *Additional test execution parameters*. For instance, the following solution settings file makes each test executable write its test results to an XML file within the executable's folder:
+
+```XML
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <GoogleTestAdapterSettings>
+    <SolutionSettings>
+      <Settings>
+        <AdditionalTestExecutionParam>--gtest_output=xml:$(ExecutableDir)\$(Executable)_$(ThreadId).xml</AdditionalTestExecutionParam>
+      </Settings>
+    </SolutionSettings>
+  </GoogleTestAdapterSettings>
+</RunSettings>
+```
+
+Note that
+* the `<GoogleTestAdapterSettings>` node must not have an `xmlns` attribute (e.g. as added by an editor making use of GTA's schema); otherwise, the settings are silently ignored,
+* the additional parameters are appended to the parameters GTA passes to the executable; since GTA itself makes use of `--gtest_output` for obtaining test results, overriding it might result in GTA reporting fewer test results in rare cases (e.g., if a test executable crashes, or if tests are debugged with debugger engine *VsTest framework*),
+* an executable might be run more than once within a single test run (e.g., in case of [parallel test execution](#parallelization), or if the tests to be run do not fit onto a single command line), and each run overwrites the file of the previous one; the `$(ThreadId)` placeholder at least prevents clashes between runs in parallel, and
+* the file is also overwritten by subsequent test runs, e.g. when running a single test from the Test Explorer.
+
+If test results are needed for reporting purposes (e.g. on a build server), consider making `VSTest.Console.exe` write them, e.g. by means of option `/Logger:trx`.
 
 ##### <a name="settings_helper_files"></a>Settings helper files
 GTA does not provide direct access to VS project settings such as *Project* > *Properties* > *Debugging* > *Environment*. Additionally, when run as NuGet dependency, GTA does not have access to information such as solution dir or Platform/Configuration a test executable has been built with.
@@ -185,11 +212,11 @@ However, note that Google Test as of V1.8.1 [uses some memory allocation](https:
 
 #### <a name="vstest_console"></a>Running tests from command line with `VSTest.Console.exe`
 
-GTA can be used to run tests from the command line, which can be done making use of VS's [VSTest.Console.exe](https://msdn.microsoft.com/en-us/library/jj155800.aspx). GTA supports all the tool's command line options, including `/UseVsixExtensions` and `/TestAdapterPath`.
+GTA can be used to run tests from the command line, which can be done making use of VS's [VSTest.Console.exe](https://learn.microsoft.com/en-us/visualstudio/test/vstest-console-options). GTA supports all the tool's command line options, including `/UseVsixExtensions` and `/TestAdapterPath`.
 
 Note, however, that VSTest.Console.exe will not make use of GTA solution settings (if the solution containing the tests happens to use such settings). All settings to be used by VSTest.Console.exe need to be passed using the `/Settings` command line option. Note also that the `$(SolutionDir)` placeholder is neither available in the *Test setup/teardown batch file* options nor in the *Additional test execution parameters* option.
 
-<a name="test_case_filters"></a>The tests to be run can be selected via the `/TestCaseFilter` option. Filters need to follow the syntax as described in this [blog entry](https://devblogs.microsoft.com/devops/running-selective-unit-tests-in-vs-2012-using-testcasefilter). GTA supports the following test properties:
+<a name="test_case_filters"></a>The tests to be run can be selected via the `/TestCaseFilter` option. Filters need to follow the syntax as described in the [VSTest documentation](https://github.com/microsoft/vstest/blob/main/docs/filter.md). GTA supports the following test properties:
 
 * DisplayName
 * FullyQualifiedName

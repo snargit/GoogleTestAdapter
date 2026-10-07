@@ -299,7 +299,7 @@ namespace GoogleTestAdapter.VsPackage
                 {
                     try
                     {
-                        solutionDir = Path.GetDirectoryName(dte.Solution.FullName);
+                        solutionDir = SolutionPaths.GetSolutionDir(dte.Solution.FullName);
                     }
                     catch (Exception e)
                     {

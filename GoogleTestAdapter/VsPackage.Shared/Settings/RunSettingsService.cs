@@ -75,7 +75,7 @@ namespace GoogleTestAdapter.TestAdapter.Settings
             string solutionRunSettingsFile = GetSolutionSettingsXmlFile();
             try
             {
-                if (File.Exists(solutionRunSettingsFile))
+                if (solutionRunSettingsFile != null && File.Exists(solutionRunSettingsFile))
                 {
                     if (!settingsContainer.GetUnsetValuesFrom(solutionRunSettingsFile))
                     {
@@ -125,7 +125,7 @@ namespace GoogleTestAdapter.TestAdapter.Settings
         {
             DTE dte = Package.GetGlobalService(typeof(DTE)) as DTE;
             Debug.Assert(dte != null, "dte == null!");
-            return Path.ChangeExtension(dte.Solution.FullName, GoogleTestConstants.SettingsExtension);
+            return SolutionPaths.GetSolutionSettingsFile(dte.Solution.FullName);
         }
 
     }

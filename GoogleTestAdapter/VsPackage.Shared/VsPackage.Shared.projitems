@@ -37,6 +37,7 @@
     </Compile>
     <Compile Include="$(MSBuildThisFileDirectory)OptionsPages\OptionsUpdater.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Settings\RunSettingsService.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Settings\SolutionPaths.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="$(MSBuildThisFileDirectory)..\Resources\Icons\Icon.ico" />

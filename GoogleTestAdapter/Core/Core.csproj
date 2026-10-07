@@ -125,6 +125,7 @@
     <None Include="Key.snk" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Resources\GTA_Traits_1.18.0.h" />
     <Content Include="Resources\GTA_Traits_1.8.0.h" />
     <Content Include="Resources\GTA_Traits_1.7.0.h" />
   </ItemGroup>

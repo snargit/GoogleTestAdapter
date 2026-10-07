@@ -27,6 +27,9 @@ namespace GoogleTestAdapter
         public const string FilterOption = " --gtest_filter=";
 
         public const string TestBodySignature = "::TestBody";
+        // trait name of the labels of CMake tests (test property LABELS)
+        public const string CMakeLabelTraitName = "Label";
+
         public const string ParameterizedTestMarker = "  # GetParam() = ";
         public const string TypedTestMarker = ".  # TypeParam = ";
 

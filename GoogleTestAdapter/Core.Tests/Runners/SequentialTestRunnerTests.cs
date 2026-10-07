@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -8,6 +9,7 @@ using GoogleTestAdapter.Helpers;
 using GoogleTestAdapter.Model;
 using GoogleTestAdapter.Scheduling;
 using GoogleTestAdapter.Settings;
+using GoogleTestAdapter.TestResults;
 using GoogleTestAdapter.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -188,6 +190,61 @@ namespace GoogleTestAdapter.Runners
                 It.Is<IEnumerable<TestResult>>(tr => CheckSingleResultHasOutcome(tr, TestOutcome.Passed))), Times.Exactly(2));
             MockFrameworkReporter.Verify(r => r.ReportTestResults(
                 It.Is<IEnumerable<TestResult>>(tr => tr.Any(result => result.Outcome != TestOutcome.Passed))), Times.Never);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void RunTests_CMakeDisabledTest_TestIsNotRunButReportedAsSkipped()
+        {
+            TestCase disabledTestCase = TestDataCreator.GetTestCases("WorkingDir.IsSolutionDirectory").First();
+            TestCase environmentTestCase = TestDataCreator.GetTestCases("EnvironmentVariable.IsSet").First();
+            var settings = CreateSettings(PlaceholderReplacer.SolutionDirPlaceholder, null, "MYENVVAR=MyValue");
+            var disabledTest = CreateTestProperties(disabledTestCase, null);
+            disabledTest.Disabled = true;
+            settings.TestPropertySettingsContainer = CreateTestPropertySettingsContainer(
+                disabledTest, CreateTestProperties(environmentTestCase, null));
+            var runner = new SequentialTestRunner("", 0, "", MockFrameworkReporter.Object, TestEnvironment.Logger, settings, new SchedulingAnalyzer(TestEnvironment.Logger));
+
+            runner.RunTests(new[] { disabledTestCase, environmentTestCase }, false, ProcessExecutorFactory);
+
+            MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
+            MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                It.Is<IEnumerable<TestResult>>(tr => tr.Count() == 1 && tr.Single().TestCase == disabledTestCase
+                    && tr.Single().Outcome == TestOutcome.Skipped
+                    && tr.Single().ErrorMessage == SequentialTestRunner.DisabledTestMessage)), Times.Once);
+            MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                It.Is<IEnumerable<TestResult>>(tr => tr.Any(result => result.TestCase == disabledTestCase && result.Outcome != TestOutcome.Skipped))), Times.Never);
+            MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                It.Is<IEnumerable<TestResult>>(tr => tr.Any(result => result.TestCase == environmentTestCase && result.Outcome == TestOutcome.Passed))), Times.Once);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void RunTests_CMakeTimeout_TestIsKilledAndRemainingTestsAreRun()
+        {
+            TestCase timedOutTestCase = TestDataCreator.GetTestCases("LongRunningTests.Test1").First();
+            TestCase otherTestCase = TestDataCreator.GetTestCases("LongRunningTests.Test2").First();
+            var settings = CreateSettings(null, null);
+            var timedOutTest = CreateTestProperties(timedOutTestCase, null);
+            timedOutTest.Timeout = TimeSpan.FromMilliseconds(500);
+            settings.TestPropertySettingsContainer = CreateTestPropertySettingsContainer(
+                timedOutTest, CreateTestProperties(otherTestCase, null));
+            var runner = new SequentialTestRunner("", 0, "", MockFrameworkReporter.Object, TestEnvironment.Logger, settings, new SchedulingAnalyzer(TestEnvironment.Logger));
+
+            var stopwatch = Stopwatch.StartNew();
+            runner.RunTests(new[] { timedOutTestCase, otherTestCase }, false, ProcessExecutorFactory);
+            stopwatch.Stop();
+
+            // the timed out test would have taken 2s, the other test takes 2s
+            stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3.5));
+            MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
+            MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                It.Is<IEnumerable<TestResult>>(tr => tr.Any(result => result.TestCase == timedOutTestCase && result.Outcome == TestOutcome.Failed
+                    && result.ErrorMessage.StartsWith(StreamingStandardOutputTestResultParser.CreateTimeoutText(TimeSpan.FromMilliseconds(500)))))), Times.Once);
+            // Test2 fails, but is run and not affected by the timeout
+            MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                It.Is<IEnumerable<TestResult>>(tr => tr.Any(result => result.TestCase == otherTestCase && result.Outcome == TestOutcome.Failed
+                    && !result.ErrorMessage.Contains("TIMED OUT") && !result.ErrorMessage.Contains(StreamingStandardOutputTestResultParser.CrashText)))), Times.Once);
         }
 
         private static TestPropertySettingsContainer.TestProperties CreateTestProperties(TestCase testCase,

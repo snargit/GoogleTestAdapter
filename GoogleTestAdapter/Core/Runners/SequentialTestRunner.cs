@@ -55,10 +55,13 @@ namespace GoogleTestAdapter.Runners
                 {
                     string userParameters = _settings.GetUserParametersForExecution(executable, _testDir, _threadId);
 
+                    var testCasesToRunOfExecutable = ReportDisabledTests(executable, groupedTestCases[executable]);
+
                     // tests of CMake projects might come with their own working directory and environment;
                     // tests sharing them are still run in one go
-                    var testCasesByTestPropertySettings = groupedTestCases[executable]
-                        .GroupBy(tc => _settings.GetTestPropertySettings(executable, tc.FullyQualifiedName));
+                    var testCasesByTestPropertySettings = testCasesToRunOfExecutable
+                        .GroupBy(tc => _settings.GetTestPropertySettings(executable, tc.FullyQualifiedName),
+                            TestPropertySettings.ExecutionEnvironmentComparer);
                     foreach (var testCases in testCasesByTestPropertySettings)
                     {
                         if (_canceled)
@@ -82,6 +85,50 @@ namespace GoogleTestAdapter.Runners
                 });
 
             }
+        }
+
+        public const string DisabledTestMessage = "Test is disabled (CMake test property DISABLED)";
+
+        // tests disabled in CMake are not run (as CTest does), but reported as skipped
+        private List<TestCase> ReportDisabledTests(string executable, IEnumerable<TestCase> testCases)
+        {
+            var testCasesToRun = new List<TestCase>();
+            var disabledTestResults = new List<TestResult>();
+            foreach (TestCase testCase in testCases)
+            {
+                if (!testCase.IsExitCodeTestCase && _settings.GetTestPropertySettings(executable, testCase.FullyQualifiedName)?.Disabled == true)
+                {
+                    disabledTestResults.Add(new TestResult(testCase)
+                    {
+                        ComputerName = Environment.MachineName,
+                        DisplayName = testCase.DisplayName,
+                        Outcome = TestOutcome.Skipped,
+                        ErrorMessage = DisabledTestMessage,
+                        Duration = TimeSpan.Zero
+                    });
+                }
+                else
+                {
+                    testCasesToRun.Add(testCase);
+                }
+            }
+
+            if (disabledTestResults.Count > 0)
+            {
+                _logger.DebugInfo($"{_threadName}Not running {disabledTestResults.Count} test(s) of executable '{executable}' which are disabled in CMake");
+                try
+                {
+                    _frameworkReporter.ReportTestsStarted(disabledTestResults.Select(tr => tr.TestCase));
+                    _frameworkReporter.ReportTestResults(disabledTestResults);
+                }
+                catch (TestRunCanceledException e)
+                {
+                    _logger.DebugInfo($"{_threadName}Execution has been canceled: {e.InnerException?.Message ?? e.Message}");
+                    Cancel();
+                }
+            }
+
+            return testCasesToRun;
         }
 
         public IList<ExecutableResult> ExecutableResults { get; } = new List<ExecutableResult>();
@@ -135,7 +182,27 @@ namespace GoogleTestAdapter.Runners
                     if (!_schedulingAnalyzer.AddActualDuration(result.TestCase, (int)result.Duration.TotalMilliseconds))
                         _logger.DebugWarning("TestCase already in analyzer: " + result.TestCase.FullyQualifiedName);
                 }
+
+                // as with CTest, a test timing out does not affect the other tests
+                if (streamingParser.TimedOutTestCase != null && !_canceled)
+                {
+                    var testCasesNotRun = GetTestCasesNotRun(arguments.TestCases, streamingParser);
+                    if (testCasesNotRun.Count > 0)
+                    {
+                        _logger.DebugInfo($"{_threadName}Test {streamingParser.TimedOutTestCase.FullyQualifiedName} has timed out, running the remaining {testCasesNotRun.Count} test(s) of executable '{executable}'");
+                        RunTestsFromExecutable(executable, workingDir, testCasesNotRun, userParameters, environmentVariables,
+                            isBeingDebugged, processExecutorFactory);
+                    }
+                }
             }
+        }
+
+        private static List<TestCase> GetTestCasesNotRun(IEnumerable<TestCase> testCases, StreamingStandardOutputTestResultParser streamingParser)
+        {
+            return testCases
+                .Except(streamingParser.TestResults.Select(tr => tr.TestCase))
+                .Where(tc => !tc.IsExitCodeTestCase && tc != streamingParser.TimedOutTestCase)
+                .ToList();
         }
 
         private IEnumerable<TestResult> RunTests(string executable, string workingDir, bool isBeingDebugged,
@@ -177,6 +244,9 @@ namespace GoogleTestAdapter.Runners
                 arguments.TestCases
                     .Except(streamingParser.TestResults.Select(tr => tr.TestCase))
                     .Where(tc => !tc.IsExitCodeTestCase);
+            // tests not run because of a timeout will be run again
+            if (streamingParser.TimedOutTestCase != null)
+                remainingTestCases = remainingTestCases.Where(tc => tc == streamingParser.TimedOutTestCase);
             var testResults = new TestResultCollector(_logger, _threadName, _settings)
                 .CollectTestResults(remainingTestCases, executable, resultXmlFile, consoleOutput, streamingParser.CrashedTestCase);
             testResults = testResults.OrderBy(tr => tr.TestCase.FullyQualifiedName).ToList();
@@ -226,9 +296,13 @@ namespace GoogleTestAdapter.Runners
                         _settings.DebuggerKind == DebuggerKind.Native ? DebuggerEngine.Native : DebuggerEngine.ManagedAndNative, 
                         printTestOutput, _logger)
                 : processExecutorFactory.CreateExecutor(printTestOutput, _logger);
-            int exitCode = _processExecutor.ExecuteCommandBlocking(
-                executable, arguments.CommandLine, workingDir, pathExtension, environmentVariables,
-                isTestOutputAvailable ? (Action<string>) OnNewOutputLine : null);
+            int exitCode;
+            using (StartTimeoutWatchdog(executable, arguments.TestCases, isBeingDebugged, isTestOutputAvailable, streamingParser))
+            {
+                exitCode = _processExecutor.ExecuteCommandBlocking(
+                    executable, arguments.CommandLine, workingDir, pathExtension, environmentVariables,
+                    isTestOutputAvailable ? (Action<string>) OnNewOutputLine : null);
+            }
             streamingParser.Flush();
 
             ExecutableResults.Add(new ExecutableResult(executable, exitCode, streamingParser.ExitCodeOutput,
@@ -244,6 +318,80 @@ namespace GoogleTestAdapter.Runners
                     _logger.DebugWarning($"{_threadName}TestCase already in analyzer: {result.TestCase.FullyQualifiedName}");
             }
             return consoleOutput;
+        }
+
+        public static readonly TimeSpan TimeoutWatchdogInterval = TimeSpan.FromMilliseconds(100);
+
+        /// <summary>
+        /// Kills the test executable if a test runs longer than its timeout as configured in CMake (test property
+        /// TIMEOUT). Returns null if none of the tests has a timeout.
+        /// </summary>
+        private IDisposable StartTimeoutWatchdog(string executable, IEnumerable<TestCase> testCases, bool isBeingDebugged,
+            bool isTestOutputAvailable, StreamingStandardOutputTestResultParser streamingParser)
+        {
+            // a debugged test might be paused at a breakpoint
+            if (isBeingDebugged || !isTestOutputAvailable)
+                return null;
+
+            var timeouts = new Dictionary<TestCase, TimeSpan>();
+            foreach (TestCase testCase in testCases)
+            {
+                TimeSpan? timeout = _settings.GetTestPropertySettings(executable, testCase.FullyQualifiedName)?.Timeout;
+                if (timeout.HasValue)
+                    timeouts[testCase] = timeout.Value;
+            }
+            if (timeouts.Count == 0)
+                return null;
+
+            return new TimeoutWatchdog(timeouts, streamingParser, _processExecutor, testCase =>
+                _logger.LogWarning($"{_threadName}Test {testCase.FullyQualifiedName} has not finished within its timeout of {timeouts[testCase].TotalSeconds}s, killing executable '{executable}'"));
+        }
+
+        private sealed class TimeoutWatchdog : IDisposable
+        {
+            private readonly IDictionary<TestCase, TimeSpan> _timeouts;
+            private readonly StreamingStandardOutputTestResultParser _streamingParser;
+            private readonly IProcessExecutor _processExecutor;
+            private readonly Action<TestCase> _onTimeout;
+            private readonly System.Threading.Timer _timer;
+            private readonly object _lock = new object();
+            private bool _isDisposed;
+
+            public TimeoutWatchdog(IDictionary<TestCase, TimeSpan> timeouts, StreamingStandardOutputTestResultParser streamingParser,
+                IProcessExecutor processExecutor, Action<TestCase> onTimeout)
+            {
+                _timeouts = timeouts;
+                _streamingParser = streamingParser;
+                _processExecutor = processExecutor;
+                _onTimeout = onTimeout;
+                _timer = new System.Threading.Timer(_ => Check(), null, TimeoutWatchdogInterval, TimeoutWatchdogInterval);
+            }
+
+            private void Check()
+            {
+                lock (_lock)
+                {
+                    if (_isDisposed || _streamingParser.TimedOutTestCase != null)
+                        return;
+
+                    TestCase runningTestCase = _streamingParser.GetRunningTestCase(out TimeSpan runningFor);
+                    if (runningTestCase == null || !_timeouts.TryGetValue(runningTestCase, out TimeSpan timeout) || runningFor <= timeout)
+                        return;
+
+                    _onTimeout(runningTestCase);
+                    _streamingParser.SetTimedOut(runningTestCase, timeout);
+                    _processExecutor.Cancel();
+                }
+            }
+
+            public void Dispose()
+            {
+                lock (_lock)
+                {
+                    _isDisposed = true;
+                    _timer.Dispose();
+                }
+            }
         }
     }
 

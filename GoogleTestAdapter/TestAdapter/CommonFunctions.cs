@@ -71,6 +71,7 @@ namespace GoogleTestAdapter.TestAdapter
             settingsWrapper.EnvironmentVariablesParser = new EnvironmentVariablesParser(loggerAdapter);
             settingsWrapper.HelperFilesCache = new HelperFilesCache(loggerAdapter);
             settingsWrapper.TestPropertySettingsContainer = TestPropertySettingsReader.Read(runSettings?.SettingsXml, loggerAdapter);
+            settingsWrapper.CTestTestPropertySettingsProvider = new CTestTestPropertySettingsProvider(loggerAdapter);
 
             LogWarningsForDeprecatedSettings(ourRunSettings, loggerAdapter);
 

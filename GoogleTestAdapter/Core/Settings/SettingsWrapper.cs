@@ -21,6 +21,7 @@ namespace GoogleTestAdapter.Settings
         public RegexTraitParser RegexTraitParser { private get; set; }
         public EnvironmentVariablesParser EnvironmentVariablesParser { private get; set; }
         public TestPropertySettingsContainer TestPropertySettingsContainer { private get; set; }
+        public CTestTestPropertySettingsProvider CTestTestPropertySettingsProvider { private get; set; }
 
         private HelperFilesCache _cache;
         public HelperFilesCache HelperFilesCache
@@ -59,7 +60,8 @@ namespace GoogleTestAdapter.Settings
                 RegexTraitParser = RegexTraitParser,
                 HelperFilesCache = HelperFilesCache,
                 EnvironmentVariablesParser = EnvironmentVariablesParser,
-                TestPropertySettingsContainer = TestPropertySettingsContainer
+                TestPropertySettingsContainer = TestPropertySettingsContainer,
+                CTestTestPropertySettingsProvider = CTestTestPropertySettingsProvider
             };
         }
 
@@ -417,13 +419,17 @@ namespace GoogleTestAdapter.Settings
         }
 
         /// <summary>
-        /// Working directory and environment of a test as configured in CMake, null if not available.
+        /// Properties of a test as configured in CMake, null if not available.
         /// </summary>
         public TestPropertySettings GetTestPropertySettings(string executable, string fullyQualifiedName)
-            => TestPropertySettingsContainer?.GetSettingsForTest(executable, fullyQualifiedName);
+            => GetTestPropertySettingsContainer(executable)?.GetSettingsForTest(executable, fullyQualifiedName);
 
         private TestPropertySettings GetTestPropertySettingsForExecutable(string executable)
-            => TestPropertySettingsContainer?.GetSettingsForExecutable(executable);
+            => GetTestPropertySettingsContainer(executable)?.GetSettingsForExecutable(executable);
+
+        // CTest knows all test properties, while Visual Studio only provides working directory and environment
+        private TestPropertySettingsContainer GetTestPropertySettingsContainer(string executable)
+            => CTestTestPropertySettingsProvider?.GetContainer(executable) ?? TestPropertySettingsContainer;
         
 
         public const string OptionAdditionalTestExecutionParams = "Additional test execution parameters";

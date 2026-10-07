@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -34,6 +35,7 @@ namespace GoogleTestAdapter.TestResults
         private static readonly Regex PrefixedLineRegex;
 
         public TestCase CrashedTestCase { get; private set; }
+        public TestCase TimedOutTestCase { get; private set; }
         public IList<TestResult> TestResults { get; } = new List<TestResult>();
         public IList<string> ExitCodeOutput { get; } = new List<string>();
         public bool ExitCodeSkip { get; private set; } = false;
@@ -44,6 +46,14 @@ namespace GoogleTestAdapter.TestResults
 
         private readonly List<string> _consoleOutput = new List<string>();
         private bool _isParsingExitCodeOutput;
+
+        private class RunningTest
+        {
+            public TestCase TestCase { get; set; }
+            public Stopwatch Stopwatch { get; set; }
+        }
+        private volatile RunningTest _runningTest;
+        private TimeSpan _timeout;
 
         static StreamingStandardOutputTestResultParser()
         {
@@ -80,6 +90,9 @@ namespace GoogleTestAdapter.TestResults
 
         private void DoReportLine(string line)
         {
+            if (IsPassedLine(line) || IsFailedLine(line) || IsSkippedLine(line))
+                _runningTest = null;
+
             if (IsRunLine(line) || line.StartsWith(GtaExitCodeOutputBegin))
             {
                 if (_consoleOutput.Count > 0)
@@ -138,8 +151,34 @@ namespace GoogleTestAdapter.TestResults
         {
             string qualifiedTestname = RemovePrefix(line).Trim();
             TestCase testCase = FindTestcase(qualifiedTestname, _testCasesRun);
+            _runningTest = testCase == null ? null : new RunningTest { TestCase = testCase, Stopwatch = Stopwatch.StartNew() };
             if (testCase != null)
                 _reporter.ReportTestsStarted(testCase.Yield());
+        }
+
+        /// <summary>
+        /// The test which is currently running, and for how long it has been running. Thread safe.
+        /// </summary>
+        public TestCase GetRunningTestCase(out TimeSpan runningFor)
+        {
+            RunningTest runningTest = _runningTest;
+            runningFor = runningTest?.Stopwatch.Elapsed ?? TimeSpan.Zero;
+            return runningTest?.TestCase;
+        }
+
+        /// <summary>
+        /// Marks a test as timed out, i.e., once the test executable has been killed, the test's result will be
+        /// a failure due to the timeout rather than due to a crash. Thread safe.
+        /// </summary>
+        public void SetTimedOut(TestCase testCase, TimeSpan timeout)
+        {
+            _timeout = timeout;
+            TimedOutTestCase = testCase;
+        }
+
+        public static string CreateTimeoutText(TimeSpan timeout)
+        {
+            return $"!! This test has TIMED OUT after {timeout.TotalSeconds.ToString(CultureInfo.InvariantCulture)}s (CMake test property TIMEOUT) !!";
         }
 
         private void ReportTestResult()
@@ -173,12 +212,7 @@ namespace GoogleTestAdapter.TestResults
 
             if (currentLineIndex == _consoleOutput.Count)
             {
-                CrashedTestCase = testCase;
-                return CreateFailedTestResult(
-                    testCase,
-                    TimeSpan.FromMilliseconds(0),
-                    CrashText,
-                    "");
+                return CreateCrashedOrTimedOutTestResult(testCase, "");
             }
 
             line = _consoleOutput[currentLineIndex++];
@@ -210,15 +244,22 @@ namespace GoogleTestAdapter.TestResults
                 return CreateSkippedTestResult(testCase, ParseDuration(line, _logger));
             }
 
-            CrashedTestCase = testCase;
-            string message = CrashText;
-            message += errorMsg == "" ? "" : $"\nTest output:\n\n{errorMsg}";
-            TestResult result = CreateFailedTestResult(
+            return CreateCrashedOrTimedOutTestResult(testCase, errorMsg);
+        }
+
+        private TestResult CreateCrashedOrTimedOutTestResult(TestCase testCase, string testOutput)
+        {
+            bool isTimedOut = testCase == TimedOutTestCase;
+            if (!isTimedOut)
+                CrashedTestCase = testCase;
+
+            string message = isTimedOut ? CreateTimeoutText(_timeout) : CrashText;
+            message += testOutput == "" ? "" : $"\nTest output:\n\n{testOutput}";
+            return CreateFailedTestResult(
                 testCase,
-                TimeSpan.FromMilliseconds(0),
+                isTimedOut ? _timeout : TimeSpan.FromMilliseconds(0),
                 message,
                 "");
-            return result;
         }
 
         private TimeSpan ParseDuration(string line, ILogger logger)

@@ -29,6 +29,7 @@ Google Test Adapter (GTA) is a Visual Studio extension providing test discovery 
 * Test output can be piped to test console
 * Exit code of test executables can be [reflected as an additional test](#evaluating_exit_code)
 * Execution of [parameterized batch files](#test_setup_and_teardown) for test setup/teardown
+* Support for [CMake projects](#cmake), including the test properties `LABELS`, `TIMEOUT`, `DISABLED`, `WORKING_DIRECTORY`, and `ENVIRONMENT`
 * Automatic recognition of gtest executables (which can be overridden by using a [custom regex](#test_discovery_regex) or an indicator file)
 * Settings can be [shared via source control](#solution_settings)
 * Installable as Visual Studio extension or NuGet development dependency
@@ -114,6 +115,17 @@ More precisely, traits are assigned to tests in three phases:
 3. Traits are assigned to tests which match one of the regular expressions specified in the *traits after* option, overriding traits from phases 1 and 2 as described above. For instance, the expression `.*\[1.*\]///Size,Large` will make sure that all parameterized tests where the parameter starts with a 1 will be assigned the trait *(Size,Large)* (and override the traits assigned by phases 1 and 2).
 
 Note that traits are assigned in an additive manner within each phase, and in an overriding manner between phases. For instance, if a test is assigned the traits *(Author,Foo)* and *(Author,Bar)* in phase 1, the test will have both traits. If the test is also assigned the trait *(Author,Baz)* in phases 2 or 3, it will only have that trait. See [test code](https://github.com/csoltenborn/GoogleTestAdapter/blob/fcc83220ceec9979710c2340f2378b0e8b430a60/GoogleTestAdapter/Core.Tests/GoogleTestDiscovererTraitTestsBase.cs) for examples.
+
+#### <a name="cmake"></a>CMake projects
+
+GTA discovers and runs the tests of executables built by CMake just like those of Visual Studio projects, e.g. when a CMake project has been opened as a folder in Visual Studio, or when running the tests via [`VSTest.Console.exe`](#vstest_console). If a `CMakeCache.txt` file is found within the folder of a test executable or one of its parent folders, GTA asks CTest (i.e., `ctest --show-only=json-v1`, using the `ctest` executable of the CMake that has generated the build tree, and the build configuration found in the executable's path for multi-config generators) for the test properties of the executable's tests, as set by `add_test()`/`set_tests_properties()` or by the `PROPERTIES` argument of `gtest_discover_tests()`/`gtest_add_tests()`. CTest tests are matched with the executable's Google Test tests by the executable and the `--gtest_filter` of the CTest test (which makes `TEST_PREFIX` and `TEST_SUFFIX` irrelevant), or by the CTest test's name. The following test properties are supported:
+
+* `LABELS`: Each label is assigned to the test as a trait *(Label,&lt;label&gt;)*, allowing to group tests by label in the Test Explorer and to select tests by label via test case filters (e.g. `/TestCaseFilter:"Label=fast"`).
+* `DISABLED`: Disabled tests are not run, but reported as skipped (as CTest does).
+* `TIMEOUT`: If a test runs longer than its timeout, the test executable is killed and the test fails with a timeout message; the remaining tests of the executable are run afterwards. Timeouts are not applied while debugging tests.
+* `WORKING_DIRECTORY` and `ENVIRONMENT`: The tests are run with the working directory and environment variables CTest would use (by default, CTest uses the build folder as working directory). A working directory configured for GTA wins over CMake's if it differs from the default; environment variables configured for GTA override CMake's.
+
+When running tests of a CMake project opened as a folder, Visual Studio additionally passes the `WORKING_DIRECTORY` and `ENVIRONMENT` test properties to the test adapter; these are used if CTest's test properties are not available.
 
 #### <a name="evaluating_exit_code"></a>Evaluating the test executable's exit code
 If option *Exit code test case* is non-empty, an additional test case will be generated per text executable (referred to as *exit code test* in the following), and that exit code test will pass if the test executable's exit code is 0. This allows to reflect some additional result as a test case; for instance, the test executable might be built such that it performs memory leak detection at shutdown (see below for [example](#evaluating_exit_code_leak_example)); the result of that check can then be seen within VS as the result of the according additional test.

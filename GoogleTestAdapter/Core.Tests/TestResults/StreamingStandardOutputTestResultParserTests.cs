@@ -823,6 +823,56 @@ Expected: true
             CheckStandardOutputResultParser(testCases, consoleOutput, results, parser.CrashedTestCase);
         }
 
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetTestResults_OutputWithTimedOutTest_ResultHasTimeoutTextAndNoTestIsCrashed()
+        {
+            string[] consoleOutput = {
+                @"[==========] Running 3 tests from 1 test case.",
+                @"[----------] Global test environment set-up.",
+                @"[----------] 3 tests from TestMath",
+                @"[ RUN      ] TestMath.AddFails",
+                @"[  FAILED  ] TestMath.AddFails (3 ms)",
+                @"[ RUN      ] TestMath.AddPasses",
+                @"some output"
+            };
+            var cases = GetTestCases();
+
+            var parser = new StreamingStandardOutputTestResultParser(cases, MockLogger.Object, MockFrameworkReporter.Object);
+            consoleOutput.ToList().ForEach(parser.ReportLine);
+            TestCase runningTestCase = parser.GetRunningTestCase(out TimeSpan runningFor);
+            runningTestCase.FullyQualifiedName.Should().Be("TestMath.AddPasses");
+            runningFor.Should().BeGreaterOrEqualTo(TimeSpan.Zero);
+
+            parser.SetTimedOut(runningTestCase, TimeSpan.FromSeconds(2));
+            parser.Flush();
+            IList<TestResult> results = parser.TestResults;
+
+            results.Should().HaveCount(2);
+            results[1].TestCase.FullyQualifiedName.Should().Be("TestMath.AddPasses");
+            XmlTestResultParserTests.AssertTestResultIsFailure(results[1]);
+            results[1].ErrorMessage.Should().StartWith(StreamingStandardOutputTestResultParser.CreateTimeoutText(TimeSpan.FromSeconds(2)));
+            results[1].ErrorMessage.Should().NotContain(StreamingStandardOutputTestResultParser.CrashText);
+            results[1].ErrorMessage.Should().Contain("some output");
+            results[1].Duration.Should().Be(TimeSpan.FromSeconds(2));
+            parser.TimedOutTestCase.Should().Be(runningTestCase);
+            parser.CrashedTestCase.Should().BeNull();
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetRunningTestCase_AfterTestHasFinished_ReturnsNull()
+        {
+            var parser = new StreamingStandardOutputTestResultParser(GetTestCases(), MockLogger.Object, MockFrameworkReporter.Object);
+
+            parser.ReportLine(@"[ RUN      ] TestMath.AddPasses");
+            parser.GetRunningTestCase(out _).FullyQualifiedName.Should().Be("TestMath.AddPasses");
+            parser.ReportLine(@"[       OK ] TestMath.AddPasses (0 ms)");
+
+            parser.GetRunningTestCase(out TimeSpan runningFor).Should().BeNull();
+            runningFor.Should().Be(TimeSpan.Zero);
+        }
+
         private List<TestCase> GetTestCases()
         {
             var cases = new List<TestCase>

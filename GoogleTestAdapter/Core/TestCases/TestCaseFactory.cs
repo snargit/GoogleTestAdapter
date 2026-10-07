@@ -192,7 +192,7 @@ namespace GoogleTestAdapter.TestCases
         {
             var testCase = new TestCase(
                 descriptor.FullyQualifiedName, _executable, descriptor.DisplayName, "", 0);
-            testCase.Traits.AddRange(GetFinalTraits(descriptor.DisplayName, new List<Trait>()));
+            testCase.Traits.AddRange(GetFinalTraits(descriptor.DisplayName, WithLabelTraits(descriptor, new List<Trait>())));
             return testCase;
         }
 
@@ -202,12 +202,24 @@ namespace GoogleTestAdapter.TestCases
             {
                 var testCase = new TestCase(
                     descriptor.FullyQualifiedName, _executable, descriptor.DisplayName, location.Sourcefile, (int)location.Line);
-                testCase.Traits.AddRange(GetFinalTraits(descriptor.DisplayName, location.Traits));
+                testCase.Traits.AddRange(GetFinalTraits(descriptor.DisplayName, WithLabelTraits(descriptor, location.Traits)));
                 return testCase;
             }
 
             _logger.LogWarning($"Could not find source location for test {descriptor.FullyQualifiedName}, executable: {_executable}");
             return CreateTestCase(descriptor);
+        }
+
+        // labels of CMake tests (test property LABELS) are treated like traits defined in the test's code
+        private List<Trait> WithLabelTraits(TestCaseDescriptor descriptor, List<Trait> traits)
+        {
+            var labels = _settings.GetTestPropertySettings(_executable, descriptor.FullyQualifiedName)?.Labels;
+            if (labels == null || labels.Count == 0)
+                return traits;
+
+            return traits
+                .Concat(labels.Select(label => new Trait(GoogleTestConstants.CMakeLabelTraitName, label)))
+                .ToList();
         }
 
         private IList<Trait> GetFinalTraits(string displayName, List<Trait> traits)

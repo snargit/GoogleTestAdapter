@@ -40,6 +40,9 @@ namespace GoogleTestAdapter.Settings
         public virtual string EnvironmentVariables { get; set; }
         public bool ShouldSerializeEnvironmentVariables() { return EnvironmentVariables != null; }
 
+        public virtual bool? UseCTestTestProperties { get; set; }
+        public bool ShouldSerializeUseCTestTestProperties() { return UseCTestTestProperties != null; }
+
         public virtual bool? CatchExceptions { get; set; }
         public bool ShouldSerializeCatchExceptions() { return CatchExceptions != null; }
 

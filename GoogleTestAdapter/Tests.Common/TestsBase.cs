@@ -98,6 +98,7 @@ namespace GoogleTestAdapter.Tests.Common
             mockOptions.Setup(o => o.MaxNrOfThreads).Returns(SettingsWrapper.OptionMaxNrOfThreadsDefaultValue);
             mockOptions.Setup(o => o.PathExtension).Returns(SettingsWrapper.OptionPathExtensionDefaultValue);
             mockOptions.Setup(o => o.EnvironmentVariables).Returns(SettingsWrapper.OptionEnvironmentVariablesDefaultValue);
+            mockOptions.Setup(o => o.UseCTestTestProperties).Returns(SettingsWrapper.OptionUseCTestTestPropertiesDefaultValue);
             mockOptions.Setup(o => o.WorkingDir).Returns(SettingsWrapper.OptionWorkingDirDefaultValue);
             mockOptions.Setup(o => o.KillProcessesOnCancel).Returns(SettingsWrapper.OptionKillProcessesOnCancelDefaultValue);
             mockOptions.Setup(o => o.SkipOriginCheck).Returns(SettingsWrapper.OptionSkipOriginCheckDefaultValue);

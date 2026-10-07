@@ -110,6 +110,16 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         private string _environmentVariables = SettingsWrapper.OptionEnvironmentVariablesDefaultValue;
 
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
+        [DisplayName(SettingsWrapper.OptionUseCTestTestProperties)]
+        [Description(SettingsWrapper.OptionUseCTestTestPropertiesDescription)]
+        public bool UseCTestTestProperties
+        {
+            get => _useCTestTestProperties;
+            set => SetAndNotify(ref _useCTestTestProperties, value);
+        }
+        private bool _useCTestTestProperties = SettingsWrapper.OptionUseCTestTestPropertiesDefaultValue;
+
+        [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionAdditionalTestExecutionParams)]
         [Description(SettingsWrapper.OptionAdditionalTestExecutionParamsDescription)]
         public string AdditionalTestExecutionParams

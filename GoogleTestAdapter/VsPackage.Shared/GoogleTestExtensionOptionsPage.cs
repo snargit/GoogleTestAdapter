@@ -272,6 +272,7 @@ namespace GoogleTestAdapter.VsPackage
                 WorkingDir = _testExecutionOptions.WorkingDir,
                 PathExtension = _testExecutionOptions.PathExtension,
                 EnvironmentVariables = _testExecutionOptions.EnvironmentVariables,
+                UseCTestTestProperties = _testExecutionOptions.UseCTestTestProperties,
                 AdditionalTestExecutionParam = _testExecutionOptions.AdditionalTestExecutionParams,
                 BatchForTestSetup = _testExecutionOptions.BatchForTestSetup,
                 BatchForTestTeardown = _testExecutionOptions.BatchForTestTeardown,

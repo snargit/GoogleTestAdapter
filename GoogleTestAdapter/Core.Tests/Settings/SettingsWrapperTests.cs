@@ -498,6 +498,56 @@ namespace GoogleTestAdapter.Settings
             TheOptions.GetEnvironmentVariablesForDiscovery(TestResources.LoadTests_ReleaseX86).Should().BeEmpty();
         }
 
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void UseCTestTestProperties__ReturnsValueOrDefault()
+        {
+            MockXmlOptions.Setup(o => o.UseCTestTestProperties).Returns((bool?)null);
+            bool result = TheOptions.UseCTestTestProperties;
+            result.Should().Be(SettingsWrapper.OptionUseCTestTestPropertiesDefaultValue);
+
+            MockXmlOptions.Setup(o => o.UseCTestTestProperties).Returns(!SettingsWrapper.OptionUseCTestTestPropertiesDefaultValue);
+            result = TheOptions.UseCTestTestProperties;
+            result.Should().Be(!SettingsWrapper.OptionUseCTestTestPropertiesDefaultValue);
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetTestPropertySettings_UseCTestTestProperties_CTestPropertiesWinOverThoseOfVisualStudio()
+        {
+            var mockProvider = SetupCTestTestPropertySettingsProvider(true);
+
+            TheOptions.GetTestPropertySettings(TestResources.Tests_DebugX86, "Suite.Test")
+                .WorkingDirectory.Should().Be(@"C:\ctest\dir");
+            mockProvider.Verify(p => p.GetContainer(TestResources.Tests_DebugX86), Times.Once);
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetTestPropertySettings_DoNotUseCTestTestProperties_CTestIsNotAskedAndPropertiesOfVisualStudioAreUsed()
+        {
+            var mockProvider = SetupCTestTestPropertySettingsProvider(false);
+
+            TheOptions.GetTestPropertySettings(TestResources.Tests_DebugX86, "Suite.Test")
+                .WorkingDirectory.Should().Be(@"C:\vs\dir");
+            TheOptions.GetWorkingDirForDiscovery(TestResources.Tests_DebugX86).Should().Be(@"C:\vs\dir");
+            mockProvider.Verify(p => p.GetContainer(It.IsAny<string>()), Times.Never);
+        }
+
+        private Mock<CTestTestPropertySettingsProvider> SetupCTestTestPropertySettingsProvider(bool useCTestTestProperties)
+        {
+            MockXmlOptions.Setup(o => o.WorkingDir).Returns((string)null);
+            MockXmlOptions.Setup(o => o.UseCTestTestProperties).Returns(useCTestTestProperties);
+            TheOptions.TestPropertySettingsContainer = CreateTestPropertySettingsContainer(TestResources.Tests_DebugX86,
+                @"C:\vs\dir", new Dictionary<string, string>());
+
+            var mockProvider = new Mock<CTestTestPropertySettingsProvider>(MockLogger.Object);
+            mockProvider.Setup(p => p.GetContainer(TestResources.Tests_DebugX86)).Returns(
+                CreateTestPropertySettingsContainer(TestResources.Tests_DebugX86, @"C:\ctest\dir", new Dictionary<string, string>()));
+            TheOptions.CTestTestPropertySettingsProvider = mockProvider.Object;
+            return mockProvider;
+        }
+
         private static TestPropertySettingsContainer CreateTestPropertySettingsContainer(string executable,
             string workingDirectory, IDictionary<string, string> environment)
         {

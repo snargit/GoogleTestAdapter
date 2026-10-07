@@ -429,7 +429,18 @@ namespace GoogleTestAdapter.Settings
 
         // CTest knows all test properties, while Visual Studio only provides working directory and environment
         private TestPropertySettingsContainer GetTestPropertySettingsContainer(string executable)
-            => CTestTestPropertySettingsProvider?.GetContainer(executable) ?? TestPropertySettingsContainer;
+            => (UseCTestTestProperties ? CTestTestPropertySettingsProvider?.GetContainer(executable) : null)
+               ?? TestPropertySettingsContainer;
+
+
+        public const string OptionUseCTestTestProperties = "Use CTest test properties";
+        public const string OptionUseCTestTestPropertiesDescription =
+            "If true, the test properties of test executables built by CMake (i.e., executables with a CMakeCache.txt in their folder or one of its parent folders) are obtained from CTest " +
+            "(ctest --show-only=json-v1): LABELS are assigned as traits 'Label', DISABLED tests are reported as skipped, tests exceeding their TIMEOUT are killed, " +
+            "and tests are run with the WORKING_DIRECTORY and ENVIRONMENT CTest would use. If false, only the working directory and environment provided by Visual Studio are used.";
+        public const bool OptionUseCTestTestPropertiesDefaultValue = true;
+
+        public virtual bool UseCTestTestProperties => _currentSettings.UseCTestTestProperties ?? OptionUseCTestTestPropertiesDefaultValue;
         
 
         public const string OptionAdditionalTestExecutionParams = "Additional test execution parameters";

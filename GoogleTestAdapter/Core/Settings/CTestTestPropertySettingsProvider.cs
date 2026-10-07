@@ -44,7 +44,7 @@ namespace GoogleTestAdapter.Settings
         /// The test properties of the executable's build tree, null if the executable has not been built by CMake
         /// or if CTest does not know any tests of the executable.
         /// </summary>
-        public TestPropertySettingsContainer GetContainer(string executable)
+        public virtual TestPropertySettingsContainer GetContainer(string executable)
         {
             try
             {

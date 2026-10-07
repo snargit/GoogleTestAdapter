@@ -127,6 +127,8 @@ GTA discovers and runs the tests of executables built by CMake just like those o
 
 When running tests of a CMake project opened as a folder, Visual Studio additionally passes the `WORKING_DIRECTORY` and `ENVIRONMENT` test properties to the test adapter; these are used if CTest's test properties are not available.
 
+Asking CTest for test properties can be switched off by means of option *Use CTest test properties* (`<UseCTestTestProperties>false</UseCTestTestProperties>` in a settings file), e.g. for selected executables via project settings; in this case, only the test properties provided by Visual Studio are used.
+
 #### <a name="evaluating_exit_code"></a>Evaluating the test executable's exit code
 If option *Exit code test case* is non-empty, an additional test case will be generated per text executable (referred to as *exit code test* in the following), and that exit code test will pass if the test executable's exit code is 0. This allows to reflect some additional result as a test case; for instance, the test executable might be built such that it performs memory leak detection at shutdown (see below for [example](#evaluating_exit_code_leak_example)); the result of that check can then be seen within VS as the result of the according additional test.
 

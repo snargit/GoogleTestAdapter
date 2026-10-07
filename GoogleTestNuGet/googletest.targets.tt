@@ -5,7 +5,7 @@
 <#@ parameter type="System.String" name="PathToBinaries" #>
 <#@ parameter type="System.String" name="ConfigurationType" #>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup Condition="'$(Force-Enable-<#= PackageNameDashes #>)' == '' And (('$(PlatformToolset)' != 'v141' And '$(PlatformToolset)' != 'v140') Or '$(ApplicationType)' != '')">
+  <PropertyGroup Condition="'$(Force-Enable-<#= PackageNameDashes #>)' == '' And (('$(PlatformToolset)' != 'v143' And '$(PlatformToolset)' != 'v145') Or '$(ApplicationType)' != '')">
     <Disable-<#= PackageNameDashes #>>true</Disable-<#= PackageNameDashes #>>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Force-Disable-<#= PackageNameDashes #>)' != ''">
@@ -27,6 +27,8 @@
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <!-- Google Test >= 1.17 requires C++17 -->
+      <LanguageStandard Condition="'%(ClCompile.LanguageStandard)' == '' Or '%(ClCompile.LanguageStandard)' == 'Default' Or '%(ClCompile.LanguageStandard)' == 'stdcpp14'">stdcpp17</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup Condition="'$(Configuration)' == 'Debug' And '$(Platform)' == 'x64' And '$(Disable-<#= PackageNameDashes #>)' == ''">

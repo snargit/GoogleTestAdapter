@@ -72,6 +72,14 @@ function Convert-DynamicCRTLinkageToString {
     else { "rt-static" }
 }
 
+function Get-CMakeGenerator {
+    switch -Wildcard ($env:VisualStudioVersion) {
+        "17.*" { "Visual Studio 17 2022" }
+        "18.*" { "Visual Studio 18 2026" }
+        default { throw "Unsupported Visual Studio version '$env:VisualStudioVersion'. Use Visual Studio 2022 or 2026." }
+    }
+}
+
 function New-CleanDirectory {
     param([String]$Path)
     if (Test-Path $Path) { Remove-Item -Recurse -Path $Path }
@@ -176,27 +184,32 @@ function Build-Binaries {
     $Dir = Create-WorkingDirectory -Prefix "build" -ToolsetName $ToolsetName -BuildToolset $BuildToolset -Platform $Platform `
         -DynamicLibraryLinkage $DynamicLibraryLinkage -DynamicCRTLinkage $DynamicCRTLinkage
 
-    $CMakeDir = "$pwd\..\ThirdParty\googletest\googletest"
+    # Google Test >= 1.10 must be configured from the repository root (sets GOOGLETEST_VERSION)
+    $CMakeDir = "$pwd\..\ThirdParty\googletest"
 
     Push-Location $Dir
     try {
         $CMakeArgs = @()
-        $CMakeArgs += "-G", "Visual Studio 15 2017"
+        $CMakeArgs += "-G", (Get-CMakeGenerator)
         $CMakeArgs += "-T", $BuildToolset
         $CMakeArgs += "-A", $Platform
+        $CMakeArgs += "-D", "BUILD_GMOCK=OFF"
+        $CMakeArgs += "-D", "INSTALL_GTEST=OFF"
         $CMakeArgs += "-D", "BUILD_SHARED_LIBS=$(Convert-BooleanToOnOff $DynamicLibraryLinkage)"
         $CMakeArgs += "-D", "gtest_force_shared_crt=$(Convert-BooleanToOnOff $DynamicCRTLinkage)"
-        $CMakeArgs += "-D", "CMAKE_CXX_FLAGS=/D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING"
+        # Without a debug postfix, Google Test names Debug PDBs gtestpdb_debug_postfix-NOTFOUND.pdb
+        $CMakeArgs += "-D", "CMAKE_DEBUG_POSTFIX="
         $CMakeArgs += $CMakeDir
         Invoke-Executable cmake $CMakeArgs
 
-        Add-Signing -Directory $Dir -ProjectName "gtest"
-        Add-Signing -Directory $Dir -ProjectName "gtest_main"
+        $ProjectDir = "$Dir\googletest"
+        Add-Signing -Directory $ProjectDir -ProjectName "gtest"
+        Add-Signing -Directory $ProjectDir -ProjectName "gtest_main"
 
-        Invoke-Executable msbuild @("gtest.vcxproj",      "/p:Configuration=Debug")
-        Invoke-Executable msbuild @("gtest_main.vcxproj", "/p:Configuration=Debug")
-        Invoke-Executable msbuild @("gtest.vcxproj",      "/p:Configuration=RelWithDebInfo")
-        Invoke-Executable msbuild @("gtest_main.vcxproj", "/p:Configuration=RelWithDebInfo")
+        Invoke-Executable msbuild @("$ProjectDir\gtest.vcxproj",      "/p:Configuration=Debug")
+        Invoke-Executable msbuild @("$ProjectDir\gtest_main.vcxproj", "/p:Configuration=Debug")
+        Invoke-Executable msbuild @("$ProjectDir\gtest.vcxproj",      "/p:Configuration=RelWithDebInfo")
+        Invoke-Executable msbuild @("$ProjectDir\gtest_main.vcxproj", "/p:Configuration=RelWithDebInfo")
     } finally {
         Pop-Location
     }
@@ -251,30 +264,32 @@ function Build-NuGet {
         $BuildPath = $_[0]
         $DestinationPath = $_[1]
 
+        # Google Test >= 1.10 puts .lib files (and compiler PDBs of static libs) into lib\<config>,
+        # .dll files and their linker PDBs into bin\<config>
         if ($DynamicLibraryLinkage) {
-            Copy-CreateItem -Path "$BuildPath\Debug\gtest.dll"      -Destination "$DestinationPath\Debug\gtest.dll"
-            Copy-CreateItem -Path "$BuildPath\Debug\gtest.lib"      -Destination "$DestinationPath\Debug\gtest.lib"
-            Copy-CreateItem -Path "$BuildPath\Debug\gtest.pdb"      -Destination "$DestinationPath\Debug\gtest.pdb"
-            Copy-CreateItem -Path "$BuildPath\Debug\gtest_main.dll" -Destination "$DestinationPath\Debug\gtest_main.dll"
-            Copy-CreateItem -Path "$BuildPath\Debug\gtest_main.lib" -Destination "$DestinationPath\Debug\gtest_main.lib"
-            Copy-CreateItem -Path "$BuildPath\Debug\gtest_main.pdb" -Destination "$DestinationPath\Debug\gtest_main.pdb"
+            Copy-CreateItem -Path "$BuildPath\bin\Debug\gtest.dll"      -Destination "$DestinationPath\Debug\gtest.dll"
+            Copy-CreateItem -Path "$BuildPath\lib\Debug\gtest.lib"      -Destination "$DestinationPath\Debug\gtest.lib"
+            Copy-CreateItem -Path "$BuildPath\bin\Debug\gtest.pdb"      -Destination "$DestinationPath\Debug\gtest.pdb"
+            Copy-CreateItem -Path "$BuildPath\bin\Debug\gtest_main.dll" -Destination "$DestinationPath\Debug\gtest_main.dll"
+            Copy-CreateItem -Path "$BuildPath\lib\Debug\gtest_main.lib" -Destination "$DestinationPath\Debug\gtest_main.lib"
+            Copy-CreateItem -Path "$BuildPath\bin\Debug\gtest_main.pdb" -Destination "$DestinationPath\Debug\gtest_main.pdb"
 
-            Copy-CreateItem -Path "$BuildPath\RelWithDebInfo\gtest.dll"      -Destination "$DestinationPath\Release\gtest.dll"
-            Copy-CreateItem -Path "$BuildPath\RelWithDebInfo\gtest.lib"      -Destination "$DestinationPath\Release\gtest.lib"
-            Copy-CreateItem -Path "$BuildPath\RelWithDebInfo\gtest.pdb"      -Destination "$DestinationPath\Release\gtest.pdb"
-            Copy-CreateItem -Path "$BuildPath\RelWithDebInfo\gtest_main.dll" -Destination "$DestinationPath\Release\gtest_main.dll"
-            Copy-CreateItem -Path "$BuildPath\RelWithDebInfo\gtest_main.lib" -Destination "$DestinationPath\Release\gtest_main.lib"
-            Copy-CreateItem -Path "$BuildPath\RelWithDebInfo\gtest_main.pdb" -Destination "$DestinationPath\Release\gtest_main.pdb"
+            Copy-CreateItem -Path "$BuildPath\bin\RelWithDebInfo\gtest.dll"      -Destination "$DestinationPath\Release\gtest.dll"
+            Copy-CreateItem -Path "$BuildPath\lib\RelWithDebInfo\gtest.lib"      -Destination "$DestinationPath\Release\gtest.lib"
+            Copy-CreateItem -Path "$BuildPath\bin\RelWithDebInfo\gtest.pdb"      -Destination "$DestinationPath\Release\gtest.pdb"
+            Copy-CreateItem -Path "$BuildPath\bin\RelWithDebInfo\gtest_main.dll" -Destination "$DestinationPath\Release\gtest_main.dll"
+            Copy-CreateItem -Path "$BuildPath\lib\RelWithDebInfo\gtest_main.lib" -Destination "$DestinationPath\Release\gtest_main.lib"
+            Copy-CreateItem -Path "$BuildPath\bin\RelWithDebInfo\gtest_main.pdb" -Destination "$DestinationPath\Release\gtest_main.pdb"
         } else {
-            Copy-CreateItem -Path "$BuildPath\Debug\gtest.lib"                              -Destination "$DestinationPath\Debug\gtest.lib"
-            Copy-CreateItem -Path "$BuildPath\Debug\gtest.pdb"                              -Destination "$DestinationPath\Debug\gtest.pdb"
-            Copy-CreateItem -Path "$BuildPath\Debug\gtest_main.lib"                         -Destination "$DestinationPath\Debug\gtest_main.lib"
-            Copy-CreateItem -Path "$BuildPath\Debug\gtest_main.pdb"                         -Destination "$DestinationPath\Debug\gtest_main.pdb"
+            Copy-CreateItem -Path "$BuildPath\lib\Debug\gtest.lib"      -Destination "$DestinationPath\Debug\gtest.lib"
+            Copy-CreateItem -Path "$BuildPath\lib\Debug\gtest.pdb"      -Destination "$DestinationPath\Debug\gtest.pdb"
+            Copy-CreateItem -Path "$BuildPath\lib\Debug\gtest_main.lib" -Destination "$DestinationPath\Debug\gtest_main.lib"
+            Copy-CreateItem -Path "$BuildPath\lib\Debug\gtest_main.pdb" -Destination "$DestinationPath\Debug\gtest_main.pdb"
 
-            Copy-CreateItem -Path "$BuildPath\RelWithDebInfo\gtest.lib"                     -Destination "$DestinationPath\Release\gtest.lib"
-            Copy-CreateItem -Path "$BuildPath\gtest.dir\RelWithDebInfo\gtest.pdb"           -Destination "$DestinationPath\Release\gtest.pdb"
-            Copy-CreateItem -Path "$BuildPath\RelWithDebInfo\gtest_main.lib"                -Destination "$DestinationPath\Release\gtest_main.lib"
-            Copy-CreateItem -Path "$BuildPath\gtest_main.dir\RelWithDebInfo\gtest_main.pdb" -Destination "$DestinationPath\Release\gtest_main.pdb"
+            Copy-CreateItem -Path "$BuildPath\lib\RelWithDebInfo\gtest.lib"      -Destination "$DestinationPath\Release\gtest.lib"
+            Copy-CreateItem -Path "$BuildPath\lib\RelWithDebInfo\gtest.pdb"      -Destination "$DestinationPath\Release\gtest.pdb"
+            Copy-CreateItem -Path "$BuildPath\lib\RelWithDebInfo\gtest_main.lib" -Destination "$DestinationPath\Release\gtest_main.lib"
+            Copy-CreateItem -Path "$BuildPath\lib\RelWithDebInfo\gtest_main.pdb" -Destination "$DestinationPath\Release\gtest_main.pdb"
         }
     }
 
@@ -329,18 +344,20 @@ function Main {
 
     # Ensure nuget is available.
     if ((Get-Command "nuget" -ErrorAction SilentlyContinue) -eq $null) {
-        if (!(Test-Path "$PSScriptRoot\..\NuGetPackages\NuGet.CommandLine.3.5.0\tools\NuGet.exe")) {
+        if (!(Test-Path "$PSScriptRoot\..\NuGetPackages\NuGet.CommandLine.5.4.0\tools\NuGet.exe")) {
             throw "nuget.exe is not available. Provide through PATH or restore NuGet packages for the solution."
         }
-        $env:Path += ";$PSScriptRoot\..\NuGetPackages\NuGet.CommandLine.3.5.0\tools"
+        $env:Path += ";$PSScriptRoot\..\NuGetPackages\NuGet.CommandLine.5.4.0\tools"
     }
     Invoke-Executable nuget
 
     $OutputDir = "..\GoogleTestAdapter\Packages"
 
-    Build-BinariesAndNuGet -ToolsetName "v140" -BuildToolset "v141" -DynamicLibraryLinkage $false -DynamicCRTLinkage $true  -OutputDir $OutputDir
-    Build-BinariesAndNuGet -ToolsetName "v140" -BuildToolset "v141" -DynamicLibraryLinkage $false -DynamicCRTLinkage $false -OutputDir $OutputDir
-    Build-BinariesAndNuGet -ToolsetName "v140" -BuildToolset "v141" -DynamicLibraryLinkage $true  -DynamicCRTLinkage $true  -OutputDir $OutputDir
+    # ToolsetName is kept at v140 since it is part of the package ids the project wizard installs.
+    # Binaries built with v143 can be consumed by v143 and v145 projects.
+    Build-BinariesAndNuGet -ToolsetName "v140" -BuildToolset "v143" -DynamicLibraryLinkage $false -DynamicCRTLinkage $true  -OutputDir $OutputDir
+    Build-BinariesAndNuGet -ToolsetName "v140" -BuildToolset "v143" -DynamicLibraryLinkage $false -DynamicCRTLinkage $false -OutputDir $OutputDir
+    Build-BinariesAndNuGet -ToolsetName "v140" -BuildToolset "v143" -DynamicLibraryLinkage $true  -DynamicCRTLinkage $true  -OutputDir $OutputDir
 
     "Success"
 }

@@ -326,6 +326,10 @@ You might consider using GTA's project settings to switch off symbol parsing and
 ##### My tests are run, but GTA's options do not seem to have any effect
 * Microsoft's *Test Adapter for Google Test* is probably installed and runs your tests instead of GTA (see [installation](#tafgt_conflict)). Remove it using the Visual Studio Installer.
 
+##### Debugging fails with "Debugging is only possible if GoogleTestAdapter has been installed into Visual Studio"
+* If the test output reads *Test Adapter for Google Test: Test execution starting...* (rather than *Google Test Adapter: ...*), your tests are run by Microsoft's *Test Adapter for Google Test*, not by GTA (see [installation](#tafgt_conflict)); this error is then reported by that adapter and can not be fixed by GTA. Remove the *Test Adapter for Google Test* component using the Visual Studio Installer.
+* Otherwise, GTA's Visual Studio package has not been loaded (e.g. because GTA has been installed via NuGet only). Install GTA into Visual Studio, or set option *Debugger engine* to *VsTest framework* (`<DebuggerKind>VsTestFramework</DebuggerKind>`), which does not need GTA's package.
+
 ##### The Test Explorer window can not be opened after installing GTA
 * Your MEF cache might have been corrupted. Please refer to [issue #172](https://github.com/csoltenborn/GoogleTestAdapter/issues/172) for help.
 

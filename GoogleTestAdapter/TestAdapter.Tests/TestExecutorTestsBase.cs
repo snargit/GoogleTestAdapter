@@ -182,6 +182,44 @@ namespace GoogleTestAdapter.TestAdapter
 
         [TestMethod]
         [TestCategory(Integration)]
+        public virtual void RunTests_Utf8Tests_CorrectTestResults()
+        {
+            RunAndVerifyTests(TestResources.Utf8Tests_DebugX86, 4, 1, 0);
+
+            MockFrameworkHandle.Verify(h => h.RecordResult(It.Is<VsTestResult>(tr =>
+                    tr.TestCase.FullyQualifiedName == "\u4e2d\u6587.\u6d4b\u8bd5" && tr.Outcome == VsTestOutcome.Passed)),
+                Times.Once);
+            MockFrameworkHandle.Verify(h => h.RecordResult(It.Is<VsTestResult>(tr =>
+                    tr.TestCase.FullyQualifiedName == "\u00dcmlaut\u00df.F\u00e4il\u00fcng" && tr.Outcome == VsTestOutcome.Failed &&
+                    tr.ErrorMessage.Contains("F\u00e4il\u00fcre"))),
+                Times.Once);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public virtual void RunTests_SomeUtf8Tests_CorrectTestResults()
+        {
+            var discoverer = new GoogleTestDiscoverer(TestEnvironment.Logger, TestEnvironment.Options);
+            var testCases = discoverer.GetTestsFromExecutable(TestResources.Utf8Tests_DebugX86)
+                .Where(tc => tc.FullyQualifiedName == "\u4e2d\u6587.\u6d4b\u8bd5" || tc.FullyQualifiedName == "\u00dcmlaut\u00df.F\u00e4il\u00fcng")
+                .ToList();
+            testCases.Should().HaveCount(2);
+
+            TestExecutor executor = new TestExecutor(TestEnvironment.Logger, TestEnvironment.Options, MockDebuggerAttacher.Object);
+            executor.RunTests(testCases.Select(tc => tc.ToVsTestCase()), MockRunContext.Object, MockFrameworkHandle.Object);
+
+            MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
+            CheckMockInvocations(1, 1, 0, 0, 0);
+            MockFrameworkHandle.Verify(h => h.RecordResult(It.Is<VsTestResult>(tr =>
+                    tr.TestCase.FullyQualifiedName == "\u4e2d\u6587.\u6d4b\u8bd5" && tr.Outcome == VsTestOutcome.Passed)),
+                Times.Once);
+            MockFrameworkHandle.Verify(h => h.RecordResult(It.Is<VsTestResult>(tr =>
+                    tr.TestCase.FullyQualifiedName == "\u00dcmlaut\u00df.F\u00e4il\u00fcng" && tr.Outcome == VsTestOutcome.Failed)),
+                Times.Once);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
         public virtual void RunTests_HardCrashingX86Tests_CorrectTestResults()
         {
             TestExecutor executor = new TestExecutor(TestEnvironment.Logger, TestEnvironment.Options, MockDebuggerAttacher.Object);

@@ -69,6 +69,7 @@
     <Compile Include="Helpers\Extensions.cs" />
     <Compile Include="Helpers\ByteUtils.cs" />
     <Compile Include="ProcessExecution\DotNetProcessExecutor.cs" />
+    <Compile Include="ProcessExecution\ProcessOutputEncoding.cs" />
     <Compile Include="Helpers\RegexTraitParser.cs" />
     <Compile Include="Model\TestCaseMetaDataProperty.cs" />
     <Compile Include="Model\TestProperty.cs" />

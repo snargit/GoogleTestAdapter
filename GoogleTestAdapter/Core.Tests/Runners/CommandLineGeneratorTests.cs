@@ -224,6 +224,21 @@ namespace GoogleTestAdapter.Runners
 
         [TestMethod]
         [TestCategory(Unit)]
+        public void GetCommandLines_TestsWithNonAsciiNames_FilterMatchesAnsiAndUtf8EncodedNames()
+        {
+            string[] testCaseNamesToRun = { "\u00dcmlaut\u00df.T\u00e4st", "\u00dcmlaut\u00df.Test", "Suite.\u4e2d\u6587", "Suite.\U0001F600" };
+            string[] allTestCaseNames = testCaseNamesToRun.Union(new[] { "Suite.Test" }).ToArray();
+            IEnumerable<Model.TestCase> testCasesToRun = TestDataCreator.CreateDummyTestCasesFull(testCaseNamesToRun, allTestCaseNames);
+
+            string commandLine = new CommandLineGenerator(testCasesToRun, TestDataCreator.DummyExecutable.Length, "", "", TestEnvironment.Options)
+                .GetCommandLines().First().CommandLine;
+
+            commandLine.Should()
+                .Be($"--gtest_output=\"xml:\"{DefaultArgs} --gtest_filter=\u00dcmlaut\u00df.*:??mlaut??.*:Suite.\u4e2d\u6587:Suite.??????:Suite.\U0001F600:Suite.????");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
         public void GetCommandLines_SingleTestsOfSuitesWithDotsInName_AreNotCombinedViaRootSuite()
         {
             // see issue #330: each suite contributes as many tests as the "unittests" root suite has suites

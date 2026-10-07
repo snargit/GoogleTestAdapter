@@ -48,6 +48,9 @@ namespace GoogleTestAdapter.Tests.Common
 
         public static readonly string LongRunningTests_ReleaseX86 = Path.Combine(SampleTestsBuildDir, @"Release\LongRunningTests_gta.exe");
 
+        public const string Utf8Tests_DebugX86 = SampleTestsBuildDir + @"Debug\Utf8Tests_gta.exe";
+        public const string Utf8Tests_ReleaseX64 = SampleTestsBuildDir + @"Release-x64\Utf8Tests_gta.exe";
+
         public const string CrashingTests_DebugX86 = SampleTestsBuildDir + @"Debug\CrashingTests_gta.exe";
         public const string CrashingTests_ReleaseX86 = SampleTestsBuildDir + @"Release\CrashingTests_gta.exe";
         public const string CrashingTests_DebugX64 = SampleTestsBuildDir + @"Debug-x64\CrashingTests_gta.exe";

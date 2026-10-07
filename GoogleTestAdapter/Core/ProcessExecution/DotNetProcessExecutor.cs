@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Text;
 using System.Threading;
 using GoogleTestAdapter.Common;
 using GoogleTestAdapter.Helpers;
@@ -40,7 +39,8 @@ namespace GoogleTestAdapter.ProcessExecution
             // output reading after https://stackoverflow.com/a/7608823/1276129
             var processStartInfo = new ProcessStartInfo(command, parameters)
             {
-                StandardOutputEncoding = Encoding.Default,
+                StandardOutputEncoding = ProcessOutputEncoding.Raw,
+                StandardErrorEncoding = ProcessOutputEncoding.Raw,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -67,6 +67,7 @@ namespace GoogleTestAdapter.ProcessExecution
                     }
                     else
                     {
+                        line = ProcessOutputEncoding.DecodeLine(line);
                         reportOutputLine(line);
                         if (_printTestOutput)
                         {

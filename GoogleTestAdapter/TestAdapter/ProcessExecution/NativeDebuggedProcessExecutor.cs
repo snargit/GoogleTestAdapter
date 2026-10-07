@@ -133,13 +133,13 @@ namespace GoogleTestAdapter.TestAdapter.ProcessExecution
 
                         ResumeThread(thread);
 
-                        using (var reader = new StreamReader(pipeStream, Encoding.Default))
+                        using (var reader = new StreamReader(pipeStream, ProcessOutputEncoding.Raw))
                         {
                             pipeStream = null;
 
                             while (!reader.EndOfStream)
                             {
-                                string line = reader.ReadLine();
+                                string line = ProcessOutputEncoding.DecodeLine(reader.ReadLine());
                                 reportOutputLine(line);
                                 if (printTestOutput)
                                 {

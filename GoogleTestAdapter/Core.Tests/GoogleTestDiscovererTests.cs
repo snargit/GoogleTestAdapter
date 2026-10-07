@@ -347,6 +347,41 @@ namespace GoogleTestAdapter
 
         [TestMethod]
         [TestCategory(Integration)]
+        public void GetTestsFromExecutable_Utf8TestsDebugX86_FindsTestsWithCorrectNames()
+        {
+            AssertFindsUtf8Tests(TestResources.Utf8Tests_DebugX86);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void GetTestsFromExecutable_Utf8TestsReleaseX64_FindsTestsWithCorrectNames()
+        {
+            AssertFindsUtf8Tests(TestResources.Utf8Tests_ReleaseX64);
+        }
+
+        private void AssertFindsUtf8Tests(string executable)
+        {
+            executable.AsFileInfo().Should().Exist("building the SampleTests solution produces that executable");
+
+            var discoverer = new GoogleTestDiscoverer(TestEnvironment.Logger, TestEnvironment.Options);
+            IList<TestCase> tests = discoverer.GetTestsFromExecutable(executable);
+
+            MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
+            MockLogger.Verify(l => l.DebugError(It.IsAny<string>()), Times.Never);
+            tests.Select(t => t.FullyQualifiedName).Should().BeEquivalentTo(
+                "\u00dcmlaut\u00df.T\u00e4st", "\u00dcmlaut\u00df.F\u00e4il\u00fcng", "\u00dcmlaut\u00df.Tr\u00e4its",
+                "\u0395\u03bb\u03bb\u03b7\u03bd\u03b9\u03ba\u03ac.\u0394\u03bf\u03ba\u03b9\u03bc\u03ae", "\u4e2d\u6587.\u6d4b\u8bd5");
+            foreach (TestCase test in tests)
+            {
+                test.CodeFilePath.Should().EndWithEquivalent("Utf8Tests.cpp", test.FullyQualifiedName);
+                test.LineNumber.Should().BeGreaterThan(0, test.FullyQualifiedName);
+            }
+            tests.Single(t => t.FullyQualifiedName == "\u00dcmlaut\u00df.Tr\u00e4its").Traits
+                .Should().ContainSingle(t => t.Name == "Type" && t.Value == "\u00dcmlaut");
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
         public void GetTestsFromExecutable_ParseSymbolInformation_DiaResolverIsCreated()
         {
             var mockFactory = new Mock<IDiaResolverFactory>();

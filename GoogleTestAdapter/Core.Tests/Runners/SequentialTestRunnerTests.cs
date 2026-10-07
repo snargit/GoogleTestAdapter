@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using FluentAssertions;
@@ -97,6 +98,118 @@ namespace GoogleTestAdapter.Runners
             MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
             MockFrameworkReporter.Verify(r => r.ReportTestResults(
                 It.Is<IEnumerable<TestResult>>(tr => CheckSingleResultHasOutcome(tr, TestOutcome.Passed))), Times.Once);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void RunTests_CMakeWorkingDirectory_TestPasses()
+        {
+            var testCase = TestDataCreator.GetTestCases("WorkingDir.IsSolutionDirectory").First();
+            var settings = CreateSettings(null, null);
+            settings.TestPropertySettingsContainer = CreateTestPropertySettingsContainer(
+                CreateTestProperties(testCase, TestResources.SampleTestsSolutionDir));
+            var runner = new SequentialTestRunner("", 0, "", MockFrameworkReporter.Object, TestEnvironment.Logger, settings, new SchedulingAnalyzer(TestEnvironment.Logger));
+
+            runner.RunTests(testCase.Yield(), false, ProcessExecutorFactory);
+
+            MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
+            MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                It.Is<IEnumerable<TestResult>>(tr => CheckSingleResultHasOutcome(tr, TestOutcome.Passed))), Times.Once);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void RunTests_CMakeWorkingDirectoryAndConfiguredWorkingDir_ConfiguredWorkingDirWinsAndTestFails()
+        {
+            var testCase = TestDataCreator.GetTestCases("WorkingDir.IsSolutionDirectory").First();
+            var settings = CreateSettings(Path.GetTempPath(), null);
+            settings.TestPropertySettingsContainer = CreateTestPropertySettingsContainer(
+                CreateTestProperties(testCase, TestResources.SampleTestsSolutionDir));
+            var runner = new SequentialTestRunner("", 0, "", MockFrameworkReporter.Object, TestEnvironment.Logger, settings, new SchedulingAnalyzer(TestEnvironment.Logger));
+
+            runner.RunTests(testCase.Yield(), false, ProcessExecutorFactory);
+
+            MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
+            MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                It.Is<IEnumerable<TestResult>>(tr => CheckSingleResultHasOutcome(tr, TestOutcome.Failed))), Times.Once);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void RunTests_CMakeEnvironment_TestPasses()
+        {
+            TestCase testCase = TestDataCreator.GetTestCases("EnvironmentVariable.IsSet").First();
+            var settings = CreateSettings(null, null);
+            settings.TestPropertySettingsContainer = CreateTestPropertySettingsContainer(
+                CreateTestProperties(testCase, null, "MYENVVAR", "MyValue"));
+            var runner = new SequentialTestRunner("", 0, "", MockFrameworkReporter.Object, TestEnvironment.Logger, settings, new SchedulingAnalyzer(TestEnvironment.Logger));
+
+            runner.RunTests(testCase.Yield(), false, ProcessExecutorFactory);
+
+            MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
+            MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                It.Is<IEnumerable<TestResult>>(tr => CheckSingleResultHasOutcome(tr, TestOutcome.Passed))), Times.Once);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void RunTests_CMakeEnvironmentAndConfiguredEnvironmentVariable_ConfiguredVariableWinsAndTestPasses()
+        {
+            TestCase testCase = TestDataCreator.GetTestCases("EnvironmentVariable.IsSet").First();
+            var settings = CreateSettings(null, null, "MYENVVAR=MyValue");
+            settings.TestPropertySettingsContainer = CreateTestPropertySettingsContainer(
+                CreateTestProperties(testCase, null, "MYENVVAR", "WrongValue"));
+            var runner = new SequentialTestRunner("", 0, "", MockFrameworkReporter.Object, TestEnvironment.Logger, settings, new SchedulingAnalyzer(TestEnvironment.Logger));
+
+            runner.RunTests(testCase.Yield(), false, ProcessExecutorFactory);
+
+            MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
+            MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                It.Is<IEnumerable<TestResult>>(tr => CheckSingleResultHasOutcome(tr, TestOutcome.Passed))), Times.Once);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void RunTests_TestsWithDifferentCMakeTestProperties_TestsAreRunSeparatelyAndPass()
+        {
+            TestCase workingDirTestCase = TestDataCreator.GetTestCases("WorkingDir.IsSolutionDirectory").First();
+            TestCase environmentTestCase = TestDataCreator.GetTestCases("EnvironmentVariable.IsSet").First();
+            workingDirTestCase.Source.Should().Be(environmentTestCase.Source);
+            var settings = CreateSettings(null, null);
+            settings.TestPropertySettingsContainer = CreateTestPropertySettingsContainer(
+                CreateTestProperties(workingDirTestCase, TestResources.SampleTestsSolutionDir),
+                CreateTestProperties(environmentTestCase, null, "MYENVVAR", "MyValue"));
+            var runner = new SequentialTestRunner("", 0, "", MockFrameworkReporter.Object, TestEnvironment.Logger, settings, new SchedulingAnalyzer(TestEnvironment.Logger));
+
+            runner.RunTests(new[] { workingDirTestCase, environmentTestCase }, false, ProcessExecutorFactory);
+
+            MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
+            MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                It.Is<IEnumerable<TestResult>>(tr => CheckSingleResultHasOutcome(tr, TestOutcome.Passed))), Times.Exactly(2));
+            MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                It.Is<IEnumerable<TestResult>>(tr => tr.Any(result => result.Outcome != TestOutcome.Passed))), Times.Never);
+        }
+
+        private static TestPropertySettingsContainer.TestProperties CreateTestProperties(TestCase testCase,
+            string workingDirectory, string variableName = null, string variableValue = null)
+        {
+            var environment = new Dictionary<string, string>();
+            if (variableName != null)
+                environment.Add(variableName, variableValue);
+
+            return new TestPropertySettingsContainer.TestProperties
+            {
+                Name = testCase.FullyQualifiedName,
+                Command = testCase.Source,
+                WorkingDirectory = workingDirectory,
+                Environment = environment
+            };
+        }
+
+        private static TestPropertySettingsContainer CreateTestPropertySettingsContainer(
+            params TestPropertySettingsContainer.TestProperties[] tests)
+        {
+            return new TestPropertySettingsContainer(tests);
         }
 
         private void DoRunCancelingTests(bool killProcesses, int lower, int upper)

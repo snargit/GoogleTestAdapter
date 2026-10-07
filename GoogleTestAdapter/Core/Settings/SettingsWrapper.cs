@@ -20,6 +20,7 @@ namespace GoogleTestAdapter.Settings
 
         public RegexTraitParser RegexTraitParser { private get; set; }
         public EnvironmentVariablesParser EnvironmentVariablesParser { private get; set; }
+        public TestPropertySettingsContainer TestPropertySettingsContainer { private get; set; }
 
         private HelperFilesCache _cache;
         public HelperFilesCache HelperFilesCache
@@ -57,7 +58,8 @@ namespace GoogleTestAdapter.Settings
             {
                 RegexTraitParser = RegexTraitParser,
                 HelperFilesCache = HelperFilesCache,
-                EnvironmentVariablesParser = EnvironmentVariablesParser
+                EnvironmentVariablesParser = EnvironmentVariablesParser,
+                TestPropertySettingsContainer = TestPropertySettingsContainer
             };
         }
 
@@ -351,14 +353,22 @@ namespace GoogleTestAdapter.Settings
             ? OptionWorkingDirDefaultValue 
             : _currentSettings.WorkingDir;
 
-        public string GetWorkingDirForExecution(string executable, string testDirectory, int threadId)
+        public string GetWorkingDirForExecution(string executable, string testDirectory, int threadId, TestPropertySettings testPropertySettings = null)
         {
-            return _placeholderReplacer.ReplaceWorkingDirPlaceholdersForExecution(WorkingDir, executable, testDirectory, threadId);
+            return GetWorkingDirFromTestPropertySettings(testPropertySettings)
+                   ?? _placeholderReplacer.ReplaceWorkingDirPlaceholdersForExecution(WorkingDir, executable, testDirectory, threadId);
         }
 
         public string GetWorkingDirForDiscovery(string executable)
         {
-            return _placeholderReplacer.ReplaceWorkingDirPlaceholdersForDiscovery(WorkingDir, executable);
+            return GetWorkingDirFromTestPropertySettings(GetTestPropertySettingsForExecutable(executable))
+                   ?? _placeholderReplacer.ReplaceWorkingDirPlaceholdersForDiscovery(WorkingDir, executable);
+        }
+
+        // a working directory configured for GTA takes precedence over the one provided by CMake
+        private string GetWorkingDirFromTestPropertySettings(TestPropertySettings testPropertySettings)
+        {
+            return WorkingDir == OptionWorkingDirDefaultValue ? testPropertySettings?.WorkingDirectory : null;
         }
 
         public const string OptionPathExtension = "PATH extension";
@@ -383,12 +393,37 @@ namespace GoogleTestAdapter.Settings
             _currentSettings.EnvironmentVariables ?? OptionEnvironmentVariablesDefaultValue;
 
         public IDictionary<string, string> GetEnvironmentVariablesForDiscovery(string executable)
-            => EnvironmentVariablesParser.ParseEnvironmentVariablesString(
-                _placeholderReplacer.ReplaceEnvironmentVariablesPlaceholdersForDiscovery(EnvironmentVariables, executable));
+            => MergeWithTestPropertySettings(
+                EnvironmentVariablesParser.ParseEnvironmentVariablesString(
+                    _placeholderReplacer.ReplaceEnvironmentVariablesPlaceholdersForDiscovery(EnvironmentVariables, executable)),
+                GetTestPropertySettingsForExecutable(executable));
 
-        public IDictionary<string, string> GetEnvironmentVariablesForExecution(string executable, string testDirectory, int threadId) 
-            => EnvironmentVariablesParser.ParseEnvironmentVariablesString(
-                _placeholderReplacer.ReplaceEnvironmentVariablesPlaceholdersForExecution(EnvironmentVariables, executable, testDirectory, threadId));
+        public IDictionary<string, string> GetEnvironmentVariablesForExecution(string executable, string testDirectory, int threadId, TestPropertySettings testPropertySettings = null) 
+            => MergeWithTestPropertySettings(
+                EnvironmentVariablesParser.ParseEnvironmentVariablesString(
+                    _placeholderReplacer.ReplaceEnvironmentVariablesPlaceholdersForExecution(EnvironmentVariables, executable, testDirectory, threadId)),
+                testPropertySettings);
+
+        // environment variables configured for GTA take precedence over the ones provided by CMake
+        private static IDictionary<string, string> MergeWithTestPropertySettings(IDictionary<string, string> environmentVariables, TestPropertySettings testPropertySettings)
+        {
+            if (testPropertySettings == null || testPropertySettings.Environment.Count == 0)
+                return environmentVariables;
+
+            var result = new Dictionary<string, string>(testPropertySettings.Environment, StringComparer.OrdinalIgnoreCase);
+            foreach (var environmentVariable in environmentVariables)
+                result[environmentVariable.Key] = environmentVariable.Value;
+            return result;
+        }
+
+        /// <summary>
+        /// Working directory and environment of a test as configured in CMake, null if not available.
+        /// </summary>
+        public TestPropertySettings GetTestPropertySettings(string executable, string fullyQualifiedName)
+            => TestPropertySettingsContainer?.GetSettingsForTest(executable, fullyQualifiedName);
+
+        private TestPropertySettings GetTestPropertySettingsForExecutable(string executable)
+            => TestPropertySettingsContainer?.GetSettingsForExecutable(executable);
         
 
         public const string OptionAdditionalTestExecutionParams = "Additional test execution parameters";

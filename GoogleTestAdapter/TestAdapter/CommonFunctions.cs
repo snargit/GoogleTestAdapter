@@ -70,6 +70,7 @@ namespace GoogleTestAdapter.TestAdapter
             settingsWrapper.RegexTraitParser = new RegexTraitParser(loggerAdapter);
             settingsWrapper.EnvironmentVariablesParser = new EnvironmentVariablesParser(loggerAdapter);
             settingsWrapper.HelperFilesCache = new HelperFilesCache(loggerAdapter);
+            settingsWrapper.TestPropertySettingsContainer = TestPropertySettingsReader.Read(runSettings?.SettingsXml, loggerAdapter);
 
             LogWarningsForDeprecatedSettings(ourRunSettings, loggerAdapter);
 

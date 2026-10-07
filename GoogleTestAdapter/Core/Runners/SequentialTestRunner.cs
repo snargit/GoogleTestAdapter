@@ -53,18 +53,32 @@ namespace GoogleTestAdapter.Runners
 
                 _settings.ExecuteWithSettingsForExecutable(executable, _logger, () =>
                 {
-                    string workingDir = _settings.GetWorkingDirForExecution(executable, _testDir, _threadId);
                     string userParameters = _settings.GetUserParametersForExecution(executable, _testDir, _threadId);
-                    IDictionary<string, string> environmentVariables = _settings.GetEnvironmentVariablesForExecution(executable, _testDir, _threadId);
 
-                    RunTestsFromExecutable(
-                        executable,
-                        workingDir,
-                        groupedTestCases[executable],
-                        userParameters,
-                        environmentVariables,
-                        isBeingDebugged,
-                        processExecutorFactory);
+                    // tests of CMake projects might come with their own working directory and environment;
+                    // tests sharing them are still run in one go
+                    var testCasesByTestPropertySettings = groupedTestCases[executable]
+                        .GroupBy(tc => _settings.GetTestPropertySettings(executable, tc.FullyQualifiedName));
+                    foreach (var testCases in testCasesByTestPropertySettings)
+                    {
+                        if (_canceled)
+                            break;
+
+                        if (testCases.Key != null)
+                            _logger.DebugInfo($"{_threadName}Running {testCases.Count()} test(s) of executable '{executable}' with CMake test properties: {testCases.Key}");
+
+                        string workingDir = _settings.GetWorkingDirForExecution(executable, _testDir, _threadId, testCases.Key);
+                        IDictionary<string, string> environmentVariables = _settings.GetEnvironmentVariablesForExecution(executable, _testDir, _threadId, testCases.Key);
+
+                        RunTestsFromExecutable(
+                            executable,
+                            workingDir,
+                            testCases,
+                            userParameters,
+                            environmentVariables,
+                            isBeingDebugged,
+                            processExecutorFactory);
+                    }
                 });
 
             }
@@ -178,8 +192,12 @@ namespace GoogleTestAdapter.Runners
             {
                 if (environmentVariables.ContainsKey("PATH") && !string.IsNullOrEmpty(environmentVariables["PATH"]))
                 {
-                    _logger.LogWarning($"Executable {executable}: Both a path extension and a PATH environment variable have been provided! The PATH environment variable will be ignored.");
-                    environmentVariables.Remove("PATH");
+                    _logger.DebugInfo($"{_threadName}Executable {executable}: Both a path extension and a PATH environment variable have been provided, appending the path extension to the PATH environment variable");
+                    environmentVariables = new Dictionary<string, string>(environmentVariables)
+                    {
+                        ["PATH"] = environmentVariables["PATH"] + ";" + pathExtension
+                    };
+                    pathExtension = null;
                 }
             }
 

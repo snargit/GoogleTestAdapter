@@ -433,6 +433,88 @@ namespace GoogleTestAdapter.Settings
 
         [TestMethod]
         [TestCategory(Unit)]
+        public void GetWorkingDirForExecution_DefaultWorkingDirAndTestPropertySettings_CMakeWorkingDirIsReturned()
+        {
+            MockXmlOptions.Setup(o => o.WorkingDir).Returns(SettingsWrapper.OptionWorkingDirDefaultValue);
+            var testPropertySettings = new TestPropertySettings(@"C:\cmake\dir", null);
+
+            TheOptions.GetWorkingDirForExecution(TestResources.Tests_DebugX86, "", 0, testPropertySettings)
+                .Should().Be(@"C:\cmake\dir");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetWorkingDirForExecution_ConfiguredWorkingDirAndTestPropertySettings_ConfiguredWorkingDirIsReturned()
+        {
+            MockXmlOptions.Setup(o => o.WorkingDir).Returns(@"C:\gta\dir");
+            var testPropertySettings = new TestPropertySettings(@"C:\cmake\dir", null);
+
+            TheOptions.GetWorkingDirForExecution(TestResources.Tests_DebugX86, "", 0, testPropertySettings)
+                .Should().Be(@"C:\gta\dir");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetWorkingDirForDiscovery_TestPropertySettingsOfExecutable_CMakeWorkingDirIsReturned()
+        {
+            MockXmlOptions.Setup(o => o.WorkingDir).Returns((string)null);
+            TheOptions.TestPropertySettingsContainer = CreateTestPropertySettingsContainer(TestResources.Tests_DebugX86,
+                @"C:\cmake\dir", new Dictionary<string, string>());
+
+            TheOptions.GetWorkingDirForDiscovery(TestResources.Tests_DebugX86).Should().Be(@"C:\cmake\dir");
+            TheOptions.GetWorkingDirForDiscovery(TestResources.LoadTests_ReleaseX86)
+                .Should().BeEquivalentTo(new FileInfo(TestResources.LoadTests_ReleaseX86).Directory?.FullName);
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetEnvironmentVariablesForExecution_TestPropertySettings_AreMergedAndConfiguredVariablesWin()
+        {
+            MockXmlOptions.Setup(o => o.EnvironmentVariables).Returns("MYVAR=gta//||//GTAONLY=gta");
+            var testPropertySettings = new TestPropertySettings(null, new Dictionary<string, string>
+            {
+                { "myvar", "cmake" },
+                { "CMAKEONLY", "cmake" }
+            });
+
+            var result = TheOptions.GetEnvironmentVariablesForExecution(TestResources.Tests_DebugX86, "", 0, testPropertySettings);
+
+            result.Should().HaveCount(3);
+            result["MYVAR"].Should().Be("gta");
+            result["GTAONLY"].Should().Be("gta");
+            result["CMAKEONLY"].Should().Be("cmake");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetEnvironmentVariablesForDiscovery_TestPropertySettingsOfExecutable_AreMerged()
+        {
+            MockXmlOptions.Setup(o => o.EnvironmentVariables).Returns((string)null);
+            TheOptions.TestPropertySettingsContainer = CreateTestPropertySettingsContainer(TestResources.Tests_DebugX86,
+                null, new Dictionary<string, string> { { "CMAKEONLY", "cmake" } });
+
+            TheOptions.GetEnvironmentVariablesForDiscovery(TestResources.Tests_DebugX86)
+                ["CMAKEONLY"].Should().Be("cmake");
+            TheOptions.GetEnvironmentVariablesForDiscovery(TestResources.LoadTests_ReleaseX86).Should().BeEmpty();
+        }
+
+        private static TestPropertySettingsContainer CreateTestPropertySettingsContainer(string executable,
+            string workingDirectory, IDictionary<string, string> environment)
+        {
+            return new TestPropertySettingsContainer(new[]
+            {
+                new TestPropertySettingsContainer.TestProperties
+                {
+                    Name = "Suite.Test",
+                    Command = executable,
+                    WorkingDirectory = workingDirectory,
+                    Environment = environment
+                }
+            });
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
         public void GetUserParams__EnvVarPlaceholderIsReplaced()
         {
             foreach (DictionaryEntry variable in Environment.GetEnvironmentVariables())

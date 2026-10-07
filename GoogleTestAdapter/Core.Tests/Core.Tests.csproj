@@ -114,6 +114,7 @@
     <Compile Include="Scheduling\DurationBasedTestsSplitterTests.cs" />
     <Compile Include="Scheduling\NumberBasedTestsSplitterTests.cs" />
     <Compile Include="Settings\SettingsWrapperTests.cs" />
+    <Compile Include="Settings\TestPropertySettingsContainerTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Scheduling\TestDurationSerializerTests.cs" />
   </ItemGroup>

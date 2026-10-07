@@ -23,6 +23,7 @@ Changes compared to the original project:
   * Test suites with dots in their names no longer cause tests of other suites to be run (upstream [#330](https://github.com/csoltenborn/GoogleTestAdapter/pull/330))
   * Test case filters on traits with multiple values (e.g. `Label=slow`) now match
   * More reliable killing of test processes on cancellation
+  * The Google Test NuGet packages link the debug or release libraries depending on the project's *Use Debug Libraries* setting, so they also work with configurations not named `Debug` or `Release` (upstream #356); the choice can be overridden with property `<package name with dashes>-LibraryConfiguration`
 
 
 # Looking for a Maintainer

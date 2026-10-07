@@ -197,6 +197,10 @@ function Build-Binaries {
         $CMakeArgs += "-D", "INSTALL_GTEST=OFF"
         $CMakeArgs += "-D", "BUILD_SHARED_LIBS=$(Convert-BooleanToOnOff $DynamicLibraryLinkage)"
         $CMakeArgs += "-D", "gtest_force_shared_crt=$(Convert-BooleanToOnOff $DynamicCRTLinkage)"
+        # Google Test only selects the static CRT itself if googletest is the top-level project,
+        # which it is not when configured from the repository root
+        $RuntimeLibrary = if ($DynamicCRTLinkage) { "MultiThreaded`$<`$<CONFIG:Debug>:Debug>DLL" } else { "MultiThreaded`$<`$<CONFIG:Debug>:Debug>" }
+        $CMakeArgs += "-D", "CMAKE_MSVC_RUNTIME_LIBRARY=$RuntimeLibrary"
         # Without a debug postfix, Google Test names Debug PDBs gtestpdb_debug_postfix-NOTFOUND.pdb
         $CMakeArgs += "-D", "CMAKE_DEBUG_POSTFIX="
         $CMakeArgs += $CMakeDir

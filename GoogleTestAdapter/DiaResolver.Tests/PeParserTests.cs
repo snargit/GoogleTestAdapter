@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using FluentAssertions;
 using GoogleTestAdapter.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -43,6 +44,47 @@ namespace GoogleTestAdapter.DiaResolver
             string pdb = PeParser.ExtractPdbPath(TestResources.LoadTests_ReleaseX86, MockLogger.Object);
             string expectedPdb = Path.GetFullPath(Path.ChangeExtension(TestResources.LoadTests_ReleaseX86, ".pdb"));
             pdb.Should().Be(expectedPdb);
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void PeParser_PathWithCharactersOutsideAnsiCodePage_IsParsed()
+        {
+            // Chinese and Greek characters can not be represented in any single ANSI code page
+            string tempDir = Path.Combine(Path.GetTempPath(), "GTA_\u6D4B\u8BD5_\u03A9_" + Path.GetRandomFileName());
+            string executable = Path.Combine(tempDir, "\u6D4B\u8BD5_\u03A9.exe");
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                File.Copy(TestResources.DllTests_ReleaseX86, executable);
+
+                PeParser.ParseImports(executable, MockLogger.Object).Should().HaveCount(14);
+                PeParser.FindImport(executable, "DllProject.dll", StringComparison.OrdinalIgnoreCase, MockLogger.Object).Should().BeTrue();
+                PeParser.ExtractPdbPath(executable, MockLogger.Object).Should().Be(
+                    PeParser.ExtractPdbPath(TestResources.DllTests_ReleaseX86, MockLogger.Object));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void PeParser_NoPeFile_NothingIsFound()
+        {
+            string file = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(file, "MZ but certainly not a PE file, which is longer than an IMAGE_DOS_HEADER");
+
+                PeParser.ParseImports(file, MockLogger.Object).Should().BeEmpty();
+                PeParser.ExtractPdbPath(file, MockLogger.Object).Should().BeNull();
+            }
+            finally
+            {
+                File.Delete(file);
+            }
         }
 
     }

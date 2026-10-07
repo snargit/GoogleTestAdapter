@@ -1,33 +1,52 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
 using GoogleTestAdapter.Common;
+using Microsoft.Win32.SafeHandles;
 
 namespace GoogleTestAdapter.DiaResolver
 {
 
     [StructLayout(LayoutKind.Sequential)]
     // ReSharper disable once InconsistentNaming
-    struct LOADED_IMAGE
+    unsafe struct IMAGE_DOS_HEADER
     {
-        public IntPtr ModuleName;
-        public IntPtr hFile;
+        public ushort e_magic;
+        public ushort e_cblp;
+        public ushort e_cp;
+        public ushort e_crlc;
+        public ushort e_cparhdr;
+        public ushort e_minalloc;
+        public ushort e_maxalloc;
+        public ushort e_ss;
+        public ushort e_sp;
+        public ushort e_csum;
+        public ushort e_ip;
+        public ushort e_cs;
+        public ushort e_lfarlc;
+        public ushort e_ovno;
+        public fixed ushort e_res1[4];
+        public ushort e_oemid;
+        public ushort e_oeminfo;
+        public fixed ushort e_res2[10];
+        public int e_lfanew;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    // ReSharper disable once InconsistentNaming
+    unsafe struct IMAGE_NT_HEADERS
+    {
+        public uint Signature;
+        public fixed byte FileHeader[20];
+        // the optional header's size differs between PE32 and PE32+, its start is all we need
+        public ushort OptionalHeaderMagic;
+    }
+
+    struct LoadedImage
+    {
         public IntPtr MappedAddress;
         public IntPtr FileHeader;
-        public IntPtr LastRvaSection;
-        public uint NumbOfSections;
-        public IntPtr FirstRvaSection;
-        public uint charachteristics;
-        public ushort systemImage;
-        public ushort dosImage;
-        public ushort readOnly;
-        public ushort version;
-        public IntPtr links_1;
-        public IntPtr links_2;
-        public uint sizeOfImage;
-        public IntPtr links_3;
-        public IntPtr links_4;
-        public IntPtr links_5;
     }
 
     [StructLayout(LayoutKind.Explicit)]
@@ -104,11 +123,33 @@ namespace GoogleTestAdapter.DiaResolver
             // ReSharper disable once InconsistentNaming
             public const ushort IMAGE_DIRECTORY_ENTRY_IMPORT = 1;
 
-            [DllImport("imageHlp.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-            public static extern bool MapAndLoad(string imageName, string dllPath, LOADED_IMAGE* loadedImage, bool dotDll, bool readOnly);
+            public const ushort IMAGE_DOS_SIGNATURE = 0x5A4D; // MZ
+            public const uint IMAGE_NT_SIGNATURE = 0x00004550; // PE\0\0
 
-            [DllImport("imageHlp.dll", CallingConvention = CallingConvention.Winapi)]
-            public static extern bool UnMapAndLoad(ref LOADED_IMAGE loadedImage);
+            public const uint GENERIC_READ = 0x80000000;
+            public const uint FILE_SHARE_READ = 0x00000001;
+            public const uint OPEN_EXISTING = 3;
+            public const uint PAGE_READONLY = 0x02;
+            public const uint FILE_MAP_READ = 0x0004;
+
+            // imageHlp's MapAndLoad only accepts ANSI paths, so files are mapped "by hand" to support any path
+            [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+            public static extern SafeFileHandle CreateFile(string lpFileName, uint dwDesiredAccess, uint dwShareMode,
+                IntPtr lpSecurityAttributes, uint dwCreationDisposition, uint dwFlagsAndAttributes, IntPtr hTemplateFile);
+
+            [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+            public static extern SafeFileHandle CreateFileMapping(SafeFileHandle hFile, IntPtr lpFileMappingAttributes,
+                uint flProtect, uint dwMaximumSizeHigh, uint dwMaximumSizeLow, string lpName);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            public static extern bool GetFileSizeEx(SafeFileHandle hFile, out long lpFileSize);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            public static extern IntPtr MapViewOfFile(SafeFileHandle hFileMappingObject, uint dwDesiredAccess,
+                uint dwFileOffsetHigh, uint dwFileOffsetLow, UIntPtr dwNumberOfBytesToMap);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            public static extern bool UnmapViewOfFile(IntPtr lpBaseAddress);
 
             [DllImport("dbghelp.dll", CallingConvention = CallingConvention.Winapi)]
             public static extern void* ImageDirectoryEntryToData(IntPtr pBase, byte mappedAsImage, ushort directoryEntry, uint* size);
@@ -117,19 +158,58 @@ namespace GoogleTestAdapter.DiaResolver
             public static extern IntPtr ImageRvaToVa(IntPtr pNtHeaders, IntPtr pBase, uint rva, IntPtr pLastRvaSection);
         }
 
-        private static void ParsePeFile(string executable, ILogger logger, Action<LOADED_IMAGE> action)
+        private static bool MapAndLoad(string executable, out LoadedImage image)
         {
-            LOADED_IMAGE image = new LOADED_IMAGE();
+            image = new LoadedImage();
+
+            long fileSize;
+            IntPtr mappedAddress;
+            using (var file = NativeMethods.CreateFile(executable, NativeMethods.GENERIC_READ, NativeMethods.FILE_SHARE_READ,
+                IntPtr.Zero, NativeMethods.OPEN_EXISTING, 0, IntPtr.Zero))
+            {
+                if (file.IsInvalid || !NativeMethods.GetFileSizeEx(file, out fileSize) || fileSize < sizeof(IMAGE_DOS_HEADER))
+                    return false;
+
+                using (var mapping = NativeMethods.CreateFileMapping(file, IntPtr.Zero, NativeMethods.PAGE_READONLY, 0, 0, null))
+                {
+                    if (mapping.IsInvalid)
+                        return false;
+
+                    // the view keeps the file mapped after its handles have been closed
+                    mappedAddress = NativeMethods.MapViewOfFile(mapping, NativeMethods.FILE_MAP_READ, 0, 0, UIntPtr.Zero);
+                    if (mappedAddress == IntPtr.Zero)
+                        return false;
+                }
+            }
+
+            var dosHeader = (IMAGE_DOS_HEADER*)mappedAddress;
+            if (dosHeader->e_magic != NativeMethods.IMAGE_DOS_SIGNATURE
+                || dosHeader->e_lfanew <= 0
+                || fileSize < (long)dosHeader->e_lfanew + sizeof(IMAGE_NT_HEADERS)
+                || ((IMAGE_NT_HEADERS*)((byte*)mappedAddress + dosHeader->e_lfanew))->Signature != NativeMethods.IMAGE_NT_SIGNATURE)
+            {
+                NativeMethods.UnmapViewOfFile(mappedAddress);
+                return false;
+            }
+
+            image.MappedAddress = mappedAddress;
+            image.FileHeader = new IntPtr((byte*)mappedAddress + dosHeader->e_lfanew);
+            return true;
+        }
+
+        private static void ParsePeFile(string executable, ILogger logger, Action<LoadedImage> action)
+        {
+            LoadedImage image = new LoadedImage();
             bool loaded = false;
             try
             {
-                loaded = NativeMethods.MapAndLoad(executable, null, &image, true, true);
+                loaded = MapAndLoad(executable, out image);
                 if(loaded)
                     action(image);
             }
             finally
             {
-                if (loaded && !NativeMethods.UnMapAndLoad(ref image))
+                if (loaded && !NativeMethods.UnmapViewOfFile(image.MappedAddress))
                     logger.LogError("UnMapAndLoad failed!");
             }
         }
@@ -178,10 +258,23 @@ namespace GoogleTestAdapter.DiaResolver
             return found;
         }
 
-        private static string GetString(LOADED_IMAGE image, uint offset)
+        private static string GetString(LoadedImage image, uint offset)
         {
             IntPtr stringPtr = NativeMethods.ImageRvaToVa(image.FileHeader, image.MappedAddress, offset, IntPtr.Zero);
-            return Marshal.PtrToStringAnsi(stringPtr);
+            return PtrToStringUtf8(stringPtr);
+        }
+
+        // the linker stores strings (e.g. the PDB path) as UTF-8
+        private static string PtrToStringUtf8(IntPtr ptr)
+        {
+            if (ptr == IntPtr.Zero)
+                return null;
+
+            var bytes = (sbyte*)ptr;
+            int length = 0;
+            while (bytes[length] != 0)
+                length++;
+            return new string(bytes, 0, length, Encoding.UTF8);
         }
 
         // Most windows executables contain the path to their PDB
@@ -201,7 +294,7 @@ namespace GoogleTestAdapter.DiaResolver
                 if (dbgDir != null && dbgDir->SizeOfData > 0)
                 {
                     var pdbInfo = (PdbInfo*)NativeMethods.ImageRvaToVa(image.FileHeader, image.MappedAddress, dbgDir->AddressOfRawData, IntPtr.Zero);
-                    pdbPath = Marshal.PtrToStringAnsi(new IntPtr(&pdbInfo->PdbFileName));
+                    pdbPath = PtrToStringUtf8(new IntPtr(&pdbInfo->PdbFileName));
                 }
             });
 

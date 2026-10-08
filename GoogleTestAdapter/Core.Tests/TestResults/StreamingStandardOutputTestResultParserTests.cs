@@ -220,8 +220,8 @@ namespace GoogleTestAdapter.TestResults
             results[2].TestCase.FullyQualifiedName.Should().Be("TestMath.Crash");
             XmlTestResultParserTests.AssertTestResultIsFailure(results[2]);
             results[2].ErrorMessage.Should().Contain(StreamingStandardOutputTestResultParser.CrashText);
-            results[2].ErrorMessage.Should().Contain("Test output:");
-            results[2].ErrorMessage.Should().Contain("unknown file: error: SEH exception with code 0xc0000005 thrown in the test body.");
+            results[2].ErrorMessage.Should().Be(StreamingStandardOutputTestResultParser.CrashText);
+            results[2].StandardOutput.Should().Be("unknown file: error: SEH exception with code 0xc0000005 thrown in the test body.\n");
             results[2].Duration.Should().Be(TimeSpan.FromMilliseconds(0));
 
             CheckStandardOutputResultParser(cases, consoleOutput, results, parser.CrashedTestCase);
@@ -732,7 +732,7 @@ Expected: true
             parser.TestResults[0].Outcome.Should().Be(TestOutcome.Skipped);
             parser.TestResults[0].ErrorMessage.Should().Be("Not supported on this platform");
             parser.TestResults[0].ErrorStackTrace.Should().Be($@"at Test.Skip in C:\...\test.cpp:line 9{Environment.NewLine}");
-            parser.TestResults[0].StandardOutput.Should().BeNull();
+            parser.TestResults[0].StandardOutput.Should().Be("C:\\...\\test.cpp(9): Skipped\nNot supported on this platform\n");
 
             CheckStandardOutputResultParser(cases, consoleOutput, parser.TestResults, parser.CrashedTestCase);
         }
@@ -809,8 +809,12 @@ Expected: true
 
             var testResult = results.Single(tr => tr.DisplayName == "OutputHandling.Output_ManyLinesWithNewlines");
             var expectedErrorMessage =
-                "before test 1\nbefore test 2\nExpected: 1\nTo be equal to: 2\ntest output\nafter test 1\nafter test 2";
+                "Expected: 1\nTo be equal to: 2\ntest output\nafter test 1\nafter test 2";
             testResult.ErrorMessage.Should().Be(expectedErrorMessage);
+            testResult.StandardOutput.Should().Be(
+                "before test 1\nbefore test 2\n" +
+                "c:\\users\\chris\\git\\googletestadapter\\sampletests\\tests\\basictests.cpp(113): error:       Expected: 1\n" +
+                "To be equal to: 2\ntest output\nafter test 1\nafter test 2\n");
 
             CheckStandardOutputResultParser(testCases, consoleOutput, results, parser.CrashedTestCase);
         }
@@ -830,7 +834,7 @@ Expected: true
 
             var testResult = results.Single(tr => tr.DisplayName == "OutputHandling.Output_OneLineWithNewlines");
             var expectedErrorMessage =
-                "before test\nExpected: 1\nTo be equal to: 2\ntest output\nafter test";
+                "Expected: 1\nTo be equal to: 2\ntest output\nafter test";
             testResult.ErrorMessage.Should().Be(expectedErrorMessage);
 
             CheckStandardOutputResultParser(testCases, consoleOutput, results, parser.CrashedTestCase);
@@ -851,7 +855,7 @@ Expected: true
 
             var testResult = results.Single(tr => tr.DisplayName == "OutputHandling.Output_OneLine");
             var expectedErrorMessage =
-                "before test\nExpected: 1\nTo be equal to: 2\ntest output\nafter test";
+                "Expected: 1\nTo be equal to: 2\ntest output\nafter test";
             testResult.ErrorMessage.Should().Be(expectedErrorMessage);
 
             CheckStandardOutputResultParser(testCases, consoleOutput, results, parser.CrashedTestCase);
@@ -872,7 +876,7 @@ Expected: true
 
             var testResult = results.Single(tr => tr.DisplayName == "OutputHandling.ManyLinesWithNewlines");
             var expectedErrorMessage =
-                "before test 1\nbefore test 2\nExpected: 1\nTo be equal to: 2\nafter test 1\nafter test 2";
+                "Expected: 1\nTo be equal to: 2\nafter test 1\nafter test 2";
             testResult.ErrorMessage.Should().Be(expectedErrorMessage);
 
             CheckStandardOutputResultParser(testCases, consoleOutput, results, parser.CrashedTestCase);
@@ -893,7 +897,7 @@ Expected: true
 
             var testResult = results.Single(tr => tr.DisplayName == "OutputHandling.Output_OneLineWithNewlines");
             var expectedErrorMessage =
-                "before test\nExpected: 1\nTo be equal to: 2\ntest output\nafter test";
+                "Expected: 1\nTo be equal to: 2\ntest output\nafter test";
             testResult.ErrorMessage.Should().Be(expectedErrorMessage);
 
             CheckStandardOutputResultParser(testCases, consoleOutput, results, parser.CrashedTestCase);
@@ -914,7 +918,7 @@ Expected: true
 
             var testResult = results.Single(tr => tr.DisplayName == "OutputHandling.OneLine");
             var expectedErrorMessage =
-                "before test\nExpected: 1\nTo be equal to: 2\nafter test";
+                "Expected: 1\nTo be equal to: 2\nafter test";
             testResult.ErrorMessage.Should().Be(expectedErrorMessage);
 
             CheckStandardOutputResultParser(testCases, consoleOutput, results, parser.CrashedTestCase);
@@ -950,7 +954,8 @@ Expected: true
             XmlTestResultParserTests.AssertTestResultIsFailure(results[1]);
             results[1].ErrorMessage.Should().StartWith(StreamingStandardOutputTestResultParser.CreateTimeoutText(TimeSpan.FromSeconds(2)));
             results[1].ErrorMessage.Should().NotContain(StreamingStandardOutputTestResultParser.CrashText);
-            results[1].ErrorMessage.Should().Contain("some output");
+            results[1].ErrorMessage.Should().NotContain("some output");
+            results[1].StandardOutput.Should().Be("some output\n");
             results[1].Duration.Should().Be(TimeSpan.FromSeconds(2));
             parser.TimedOutTestCase.Should().Be(runningTestCase);
             parser.CrashedTestCase.Should().BeNull();

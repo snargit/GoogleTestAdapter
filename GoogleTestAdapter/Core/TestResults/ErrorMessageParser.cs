@@ -38,7 +38,6 @@ namespace GoogleTestAdapter.TestResults
         public string ErrorMessage { get; private set; }
         public string ErrorStackTrace { get; private set; }
 
-        private string _outputBeforeFirstFailure = "";
         private readonly string _testName;
         private IList<string> ErrorMessages { get; }
 
@@ -72,13 +71,6 @@ namespace GoogleTestAdapter.TestResults
                     HandleMultipleFailures();
                     break;
             }
-
-            if (_outputBeforeFirstFailure != "")
-            {
-                if (!_outputBeforeFirstFailure.EndsWith("\n") && !_outputBeforeFirstFailure.EndsWith("\r\n"))
-                    _outputBeforeFirstFailure += "\n";
-                ErrorMessage = $"{_outputBeforeFirstFailure}{ErrorMessage}";
-            }
         }
 
         public static string CreateStackTraceEntry(string label, string fullFileName, string lineNumber)
@@ -95,12 +87,10 @@ namespace GoogleTestAdapter.TestResults
             if (matches.Count == 0)
                 return new List<string>{ errorMessage };
 
+            // output before the first failure is not part of the error message (but of the test's standard output)
             var errorMessages = new List<string>();
-            int startIndex = 0;
-            int length = matches[0].Index;
-            if (length > 0)
-                _outputBeforeFirstFailure = errorMessage.Substring(startIndex, length);
-
+            int startIndex;
+            int length;
             for (int i = 0; i < matches.Count - 1; i++)
             {
                 startIndex = matches[i].Index;

@@ -232,11 +232,11 @@ namespace GoogleTestAdapter.TestResults
             {
                 ErrorMessageParser parser = new ErrorMessageParser(errorMsg, testCase.FullyQualifiedName);
                 parser.Parse();
-                return CreateFailedTestResult(
+                return WithStandardOutput(CreateFailedTestResult(
                     testCase,
                     ParseDuration(line, _logger),
                     parser.ErrorMessage,
-                    parser.ErrorStackTrace);
+                    parser.ErrorStackTrace), errorMsg);
             }
             if (IsPassedLine(line))
             {
@@ -244,20 +244,21 @@ namespace GoogleTestAdapter.TestResults
             }
             if (IsSkippedLine(line))
             {
-                // just like for failed tests, the skip message (and the test's output) is the error message
+                // just like for failed tests, the skip message is the error message
                 ErrorMessageParser parser = new ErrorMessageParser(errorMsg, testCase.FullyQualifiedName);
                 parser.Parse();
-                return CreateSkippedTestResult(
+                return WithStandardOutput(CreateSkippedTestResult(
                     testCase,
                     ParseDuration(line, _logger),
                     parser.ErrorMessage,
-                    parser.ErrorStackTrace);
+                    parser.ErrorStackTrace), errorMsg);
             }
 
             return CreateCrashedOrTimedOutTestResult(testCase, errorMsg);
         }
 
-        // the output of failed and skipped tests is part of their error message
+        // the complete output of the test as printed by Google Test, including failure messages (the console output
+        // does not allow to tell where a failure message ends and further output of the test begins)
         private static TestResult WithStandardOutput(TestResult testResult, string testOutput)
         {
             if (testOutput != "")
@@ -272,12 +273,11 @@ namespace GoogleTestAdapter.TestResults
                 CrashedTestCase = testCase;
 
             string message = isTimedOut ? CreateTimeoutText(_timeout) : CrashText + CreateExitCodeText(_exitCode);
-            message += testOutput == "" ? "" : $"\nTest output:\n\n{testOutput}";
-            return CreateFailedTestResult(
+            return WithStandardOutput(CreateFailedTestResult(
                 testCase,
                 isTimedOut ? _timeout : TimeSpan.FromMilliseconds(0),
                 message,
-                CreateTestLocationStackTrace(testCase));
+                CreateTestLocationStackTrace(testCase)), testOutput);
         }
 
         // a crashed or timed out test has no failure location, so point to the test itself

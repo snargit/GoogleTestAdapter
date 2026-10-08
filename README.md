@@ -29,6 +29,9 @@ Changes compared to the original project:
   * Tests compiled with `/utf-8` are now supported: GTA decodes the output of test executables as UTF-8 (falling back to the system's ANSI code page), and test filters also match test names with non-ASCII characters if these are UTF-8 encoded (new sample project `Utf8Tests`)
   * The error message of a crashed test contains the exit code of the test executable, e.g. `!! This test has probably CRASHED !! (exit code -1073741819, i.e. 0xC0000005)` (upstream #358)
   * Canceling a test run kills the test executable including all processes it has started (by means of a job object); test executables are also killed if the test host dies, and a cancel request arriving while a test executable is about to be started is no longer missed (upstream #337)
+  * Tests skipped with `GTEST_SKIP()` are no longer reported as passed if their results are taken from the result XML file (e.g. when debugging tests); the skip message is reported as the result's error message (with the location of `GTEST_SKIP()` as stack trace), i.e. it is shown in Test Explorer and is available to Copilot
+  * Results of crashed and timed out tests have a stack trace pointing to the test's source location, so that Copilot and other tools can find the test
+  * A missing .pdb file of a test executable is reported as a warning (rather than only in debug mode), since its tests do not have source locations then
   * More reliable killing of test processes on cancellation
   * The Google Test NuGet packages link the debug or release libraries depending on the project's *Use Debug Libraries* setting, so they also work with configurations not named `Debug` or `Release` (upstream #356); the choice can be overridden with property `<package name with dashes>-LibraryConfiguration`
 

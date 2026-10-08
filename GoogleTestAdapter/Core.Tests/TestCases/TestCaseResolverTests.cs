@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿using System;
+using System.IO;
+using System.Linq;
 using FluentAssertions;
 using GoogleTestAdapter.Common;
 using GoogleTestAdapter.DiaResolver;
@@ -79,6 +81,19 @@ namespace GoogleTestAdapter.TestCases
             testCaseLocation.Should().NotBeNull();
             testCaseLocation.Sourcefile.Should().EndWithEquivalent(@"sampletests\tests\basictests.cpp");
             testCaseLocation.Namespace.Should().BeEmpty();
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void Constructor_ExecutableWithoutPdb_WarningIsLoggedEvenIfNotInDebugMode()
+        {
+            var logger = new FakeLogger(() => OutputMode.Info, false);
+            string executableWithoutPdb = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+
+            new TestCaseResolver(executableWithoutPdb, new DefaultDiaResolverFactory(), MockOptions.Object, logger);
+
+            logger.Warnings.Should().ContainSingle()
+                .Which.Should().Contain($"No .pdb file found for test executable '{executableWithoutPdb}'");
         }
 
         private void AssertCorrectTestLocationIsFound(string suite, uint line, string expectedNamespace)

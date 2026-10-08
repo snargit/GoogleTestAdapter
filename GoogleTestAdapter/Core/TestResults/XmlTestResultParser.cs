@@ -185,6 +185,17 @@ namespace GoogleTestAdapter.TestResults
             switch (testCaseStatus)
             {
                 case "run":
+                    // tests skipped with GTEST_SKIP() have status "run" (Google Test >= 1.10)
+                    if (testcaseNode.Attributes["result"]?.InnerText == "skipped")
+                    {
+                        var skipParser = new ErrorMessageParser(testcaseNode.SelectNodes("skipped"));
+                        skipParser.Parse();
+                        testResult.Outcome = TestOutcome.Skipped;
+                        testResult.ErrorMessage = skipParser.ErrorMessage == "" ? null : skipParser.ErrorMessage;
+                        testResult.ErrorStackTrace = skipParser.ErrorStackTrace == "" ? null : skipParser.ErrorStackTrace;
+                        break;
+                    }
+
                     XmlNodeList failureNodes = testcaseNode.SelectNodes("failure");
                     if (failureNodes.Count == 0)
                     {

@@ -24,7 +24,8 @@ namespace GoogleTestAdapter.TestResults
             string file = $"([a-z]:{validCharRegex}*)";
             string line = "([0-9]+)";
             string fileAndLine = $@"{file}(?::{line}|\({line}\):)";
-            string error = @"(?:error: |Failure\n)";
+            // "Skipped" is printed by GTEST_SKIP()
+            string error = @"(?:error: |Failure\n|Skipped\n)";
 
             SplitRegex = new Regex($"{fileAndLine}:? {error}", RegexOptions.IgnoreCase);
             ParseRegex = new Regex($"^{fileAndLine}(?::? {error})?", RegexOptions.IgnoreCase);

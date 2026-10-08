@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using FluentAssertions;
 using GoogleTestAdapter.Common;
@@ -72,6 +73,57 @@ namespace GoogleTestAdapter.TestResults
             results.Should().HaveCount(2);
             AssertTestResultIsPassed(results[0]);
             AssertTestResultIsSkipped(results[1]);
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetTestResults_TestSkippedWithGTestSkip_IsSkippedWithMessage()
+        {
+            List<Model.TestResult> results = ParseSkipResultXml(@"C:\src\Skip.cpp:2&#x0A;not supported on this machine&#x0A;",
+                "C:\\src\\Skip.cpp:2\nnot supported on this machine\n");
+
+            results.Should().HaveCount(2);
+            Model.TestResult skipped = results.Single(r => r.TestCase.FullyQualifiedName == "SkipSuite.skipped");
+            skipped.Outcome.Should().Be(Model.TestOutcome.Skipped);
+            skipped.ErrorMessage.Should().Be("not supported on this machine");
+            skipped.ErrorStackTrace.Should().Be($@"at Skip.cpp:2 in C:\src\Skip.cpp:line 2{Environment.NewLine}");
+            AssertTestResultIsPassed(results.Single(r => r.TestCase.FullyQualifiedName == "SkipSuite.passing"));
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetTestResults_TestSkippedWithGTestSkipWithoutMessage_IsSkipped()
+        {
+            List<Model.TestResult> results = ParseSkipResultXml(@"C:\src\Skip.cpp:2&#x0A;", "C:\\src\\Skip.cpp:2\n");
+
+            results.Should().HaveCount(2);
+            AssertTestResultIsSkipped(results.Single(r => r.TestCase.FullyQualifiedName == "SkipSuite.skipped"));
+            AssertTestResultIsPassed(results.Single(r => r.TestCase.FullyQualifiedName == "SkipSuite.passing"));
+        }
+
+        // as written by Google Test 1.18
+        private List<Model.TestResult> ParseSkipResultXml(string skipMessageAttribute, string skipMessage)
+        {
+            string xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<testsuites tests=""2"" failures=""0"" disabled=""0"" errors=""0"" time=""0.002"" timestamp=""2026-10-08T11:33:52.592"" name=""AllTests"">
+  <testsuite name=""SkipSuite"" tests=""2"" failures=""0"" disabled=""0"" skipped=""1"" errors=""0"" time=""0."" timestamp=""2026-10-08T11:33:52.592"">
+    <testcase name=""skipped"" file=""C:\src\Skip.cpp"" line=""2"" status=""run"" result=""skipped"" time=""0."" timestamp=""2026-10-08T11:33:52.592"" classname=""SkipSuite"">
+      <skipped message=""{skipMessageAttribute}""><![CDATA[{skipMessage}]]></skipped>
+    </testcase>
+    <testcase name=""passing"" file=""C:\src\Skip.cpp"" line=""3"" status=""run"" result=""completed"" time=""0."" timestamp=""2026-10-08T11:33:52.593"" classname=""SkipSuite"" />
+  </testsuite>
+</testsuites>";
+            string xmlFile = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(xmlFile, xml, new UTF8Encoding(false));
+                IEnumerable<Model.TestCase> testCases = TestDataCreator.CreateDummyTestCases("SkipSuite.skipped", "SkipSuite.passing");
+                return new XmlTestResultParser(testCases, "someexecutable", xmlFile, TestEnvironment.Logger).GetTestResults();
+            }
+            finally
+            {
+                File.Delete(xmlFile);
+            }
         }
 
         [TestMethod]

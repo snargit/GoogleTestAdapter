@@ -244,13 +244,20 @@ namespace GoogleTestAdapter.TestResults
             }
             if (IsSkippedLine(line))
             {
-                return WithStandardOutput(CreateSkippedTestResult(testCase, ParseDuration(line, _logger)), errorMsg);
+                // just like for failed tests, the skip message (and the test's output) is the error message
+                ErrorMessageParser parser = new ErrorMessageParser(errorMsg);
+                parser.Parse();
+                return CreateSkippedTestResult(
+                    testCase,
+                    ParseDuration(line, _logger),
+                    parser.ErrorMessage,
+                    parser.ErrorStackTrace);
             }
 
             return CreateCrashedOrTimedOutTestResult(testCase, errorMsg);
         }
 
-        // the output of failed tests is part of their error message
+        // the output of failed and skipped tests is part of their error message
         private static TestResult WithStandardOutput(TestResult testResult, string testOutput)
         {
             if (testOutput != "")
@@ -270,7 +277,16 @@ namespace GoogleTestAdapter.TestResults
                 testCase,
                 isTimedOut ? _timeout : TimeSpan.FromMilliseconds(0),
                 message,
-                "");
+                CreateTestLocationStackTrace(testCase));
+        }
+
+        // a crashed or timed out test has no failure location, so point to the test itself
+        private static string CreateTestLocationStackTrace(TestCase testCase)
+        {
+            return string.IsNullOrEmpty(testCase.CodeFilePath)
+                ? ""
+                : ErrorMessageParser.CreateStackTraceEntry(
+                    testCase.FullyQualifiedName, testCase.CodeFilePath, testCase.LineNumber.ToString());
         }
 
         // exit codes of crashes are usually NTSTATUS codes, e.g. 0xC0000005 for an access violation
@@ -317,13 +333,15 @@ namespace GoogleTestAdapter.TestResults
             };
         }
 
-        private TestResult CreateSkippedTestResult(TestCase testCase, TimeSpan duration)
+        private TestResult CreateSkippedTestResult(TestCase testCase, TimeSpan duration, string errorMessage, string errorStackTrace)
         {
             return new TestResult(testCase)
             {
                 ComputerName = Environment.MachineName,
                 DisplayName = testCase.DisplayName,
                 Outcome = TestOutcome.Skipped,
+                ErrorMessage = errorMessage == "" ? null : errorMessage,
+                ErrorStackTrace = errorStackTrace == "" ? null : errorStackTrace,
                 Duration = duration
             };
         }

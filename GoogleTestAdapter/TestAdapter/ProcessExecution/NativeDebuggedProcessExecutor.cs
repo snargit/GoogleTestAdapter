@@ -43,8 +43,12 @@ namespace GoogleTestAdapter.TestAdapter.ProcessExecution
                 int exitCode = NativeMethods.ExecuteCommandBlocking(command, parameters, workingDir, pathExtension, environmentVariables, _debuggerAttacher, _debuggerEngine, _logger, _printTestOutput, reportOutputLine,
                     (processId, job) =>
                     {
-                        _processId = processId;
-                        _job = job;
+                        lock (_lock)
+                        {
+                            _processId = processId;
+                            _job = job;
+                            return !_canceled;
+                        }
                     });
                 _logger.DebugInfo($"Executable {command} returned with exit code {exitCode}");
                 return exitCode;
@@ -57,16 +61,21 @@ namespace GoogleTestAdapter.TestAdapter.ProcessExecution
             }
         }
 
+        private readonly object _lock = new object();
+        private bool _canceled;
         private int? _processId;
-        private volatile JobObject _job;
+        private JobObject _job;
 
         public void Cancel()
         {
-            JobObject job = _job;
-            if (job != null)
-                job.Terminate();
-            else if (_processId.HasValue)
-                ProcessUtils.KillProcess(_processId.Value, _logger);
+            lock (_lock)
+            {
+                _canceled = true;
+                if (_job != null)
+                    _job.Terminate();
+                else if (_processId.HasValue)
+                    ProcessUtils.KillProcess(_processId.Value, _logger);
+            }
         }
 
         [SuppressMessage("ReSharper", "MemberCanBePrivate.Local")]
@@ -115,7 +124,7 @@ namespace GoogleTestAdapter.TestAdapter.ProcessExecution
             internal static int ExecuteCommandBlocking(
                 string command, string parameters, string workingDir, string pathExtension, IDictionary<string, string> environmentVariables, 
                 IDebuggerAttacher debuggerAttacher, DebuggerEngine debuggerEngine, 
-                ILogger logger, bool printTestOutput, Action<string> reportOutputLine, Action<int, JobObject> reportProcess)
+                ILogger logger, bool printTestOutput, Action<string> reportOutputLine, Func<int, JobObject, bool> reportProcess)
             {
                 ProcessOutputPipeStream pipeStream = null;
                 try
@@ -128,7 +137,14 @@ namespace GoogleTestAdapter.TestAdapter.ProcessExecution
                     // the process is still suspended, so it can not have started any child processes yet
                     using (var job = JobObject.TryCreate(processInfo.hProcess, processInfo.dwProcessId, logger))
                     {
-                        reportProcess(processInfo.dwProcessId, job);
+                        // reportProcess() returns false if execution has been canceled before
+                        if (!reportProcess(processInfo.dwProcessId, job))
+                        {
+                            logger.DebugInfo($"Executable {command} has not been started since execution has been canceled");
+                            if (!TerminateProcess(process, unchecked((uint)-1)))
+                                logger.DebugWarning($"Could not terminate process {processInfo.dwProcessId}: {Win32Utils.GetLastWin32Error()}");
+                            return ExecutionFailed;
+                        }
                         pipeStream.ConnectedToChildProcess();
 
                         logger.DebugInfo($"Attaching debugger to '{command}' via {debuggerEngine} engine");
@@ -284,6 +300,10 @@ namespace GoogleTestAdapter.TestAdapter.ProcessExecution
 
             [DllImport("kernel32.dll", SetLastError = true)]
             private static extern int ResumeThread(SafeHandle hThread);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            private static extern bool TerminateProcess(SafeHandle hProcess, uint uExitCode);
 
             private static readonly SafeHandle NULL_HANDLE = new SafePipeHandle(IntPtr.Zero, false);
 

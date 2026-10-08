@@ -55,6 +55,13 @@ namespace GoogleTestAdapter.TestAdapter.ProcessExecution
 
         [TestMethod]
         [TestCategory(TestMetadata.TestCategories.Unit)]
+        public void Cancel_BeforeExecution_ProcessIsNotStarted()
+        {
+            Test_CancelBeforeExecution_ProcessIsNotStarted();
+        }
+
+        [TestMethod]
+        [TestCategory(TestMetadata.TestCategories.Unit)]
         public void Cancel_ProcessWithChildProcess_KillsProcessTree()
         {
             Test_Cancel_KillsProcessTree();

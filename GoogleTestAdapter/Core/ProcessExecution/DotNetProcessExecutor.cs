@@ -15,7 +15,10 @@ namespace GoogleTestAdapter.ProcessExecution
         private readonly ILogger _logger;
         
         private Process _process;
-        private volatile JobObject _job;
+        private readonly object _lock = new object();
+        private bool _canceled;
+        private int? _processId;
+        private JobObject _job;
 
         public static void LogStartOfOutput(ILogger logger, string command, string parameters)
         {
@@ -87,8 +90,22 @@ namespace GoogleTestAdapter.ProcessExecution
                     LogStartOfOutput(_logger, command, parameters);
                 }
 
-                _process.Start();
-                using (_job = JobObject.TryCreate(_process.Handle, _process.Id, _logger))
+                JobObject job;
+                lock (_lock)
+                {
+                    // the executable is not started at all if execution has been canceled before
+                    if (_canceled)
+                    {
+                        _logger.DebugInfo($"Executable {command} has not been started since execution has been canceled");
+                        return int.MaxValue;
+                    }
+
+                    _process.Start();
+                    _processId = _process.Id;
+                    _job = job = JobObject.TryCreate(_process.Handle, _process.Id, _logger);
+                }
+
+                using (job)
                 {
                     _process.BeginOutputReadLine();
                     _process.BeginErrorReadLine();
@@ -114,14 +131,17 @@ namespace GoogleTestAdapter.ProcessExecution
 
         public void Cancel()
         {
-            JobObject job = _job;
-            if (job != null)
+            lock (_lock)
             {
-                job.Terminate();
-            }
-            else if (_process != null)
-            {
-                ProcessUtils.KillProcess(_process.Id, _logger);
+                _canceled = true;
+                if (_job != null)
+                {
+                    _job.Terminate();
+                }
+                else if (_processId.HasValue)
+                {
+                    ProcessUtils.KillProcess(_processId.Value, _logger);
+                }
             }
         }
 

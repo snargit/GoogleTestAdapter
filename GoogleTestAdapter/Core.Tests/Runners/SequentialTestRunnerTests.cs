@@ -6,7 +6,10 @@ using System.Linq;
 using System.Threading;
 using FluentAssertions;
 using GoogleTestAdapter.Helpers;
+using GoogleTestAdapter.Common;
 using GoogleTestAdapter.Model;
+using GoogleTestAdapter.ProcessExecution;
+using GoogleTestAdapter.ProcessExecution.Contracts;
 using GoogleTestAdapter.Scheduling;
 using GoogleTestAdapter.Settings;
 using GoogleTestAdapter.TestResults;
@@ -39,6 +42,32 @@ namespace GoogleTestAdapter.Runners
                 true,
                 1000,  // 1st test should be canceled
                 2000); // 2nd test should not be executed 
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void RunTests_CancelingWhileExecutorIsCreated_ExecutableIsNotStarted()
+        {
+            MockOptions.Setup(o => o.KillProcessesOnCancel).Returns(true);
+            List<TestCase> testCasesToRun = TestDataCreator.GetTestCases("Crashing.LongRunning");
+            var runner = new SequentialTestRunner("", 0, "", MockFrameworkReporter.Object, TestEnvironment.Logger, TestEnvironment.Options, new SchedulingAnalyzer(TestEnvironment.Logger));
+
+            // the cancel request arrives after the runner has checked for it, but before the executable is started
+            var mockFactory = new Mock<IDebuggedProcessExecutorFactory>();
+            mockFactory
+                .Setup(f => f.CreateExecutor(It.IsAny<bool>(), It.IsAny<ILogger>()))
+                .Returns((bool printTestOutput, ILogger logger) =>
+                {
+                    runner.Cancel();
+                    return new DotNetProcessExecutor(printTestOutput, logger);
+                });
+
+            var stopwatch = Stopwatch.StartNew();
+            runner.RunTests(testCasesToRun, false, mockFactory.Object);
+            stopwatch.Stop();
+
+            stopwatch.ElapsedMilliseconds.Should().BeLessThan(1000); // Crashing.LongRunning takes 2s
+            runner.ExecutableResults.Should().ContainSingle().Which.ExitCode.Should().Be(int.MaxValue);
         }
 
         [TestMethod]

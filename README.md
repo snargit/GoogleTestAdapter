@@ -27,7 +27,7 @@ Changes compared to the original project:
   * Test results are no longer lost if Google Test writes test names with non-ASCII characters (e.g. umlauts) to its XML result file in the system's ANSI code page instead of the declared UTF-8, which happens with recent versions of Google Test if the tests are not compiled with `/utf-8` (e.g., when debugging tests with debugger engine *VsTest framework*)
   * Tests compiled with `/utf-8` are now supported: GTA decodes the output of test executables as UTF-8 (falling back to the system's ANSI code page), and test filters also match test names with non-ASCII characters if these are UTF-8 encoded (new sample project `Utf8Tests`)
   * The error message of a crashed test contains the exit code of the test executable, e.g. `!! This test has probably CRASHED !! (exit code -1073741819, i.e. 0xC0000005)` (upstream #358)
-  * Canceling a test run kills the test executable including all processes it has started (by means of a job object); test executables are also killed if the test host dies (upstream #337)
+  * Canceling a test run kills the test executable including all processes it has started (by means of a job object); test executables are also killed if the test host dies, and a cancel request arriving while a test executable is about to be started is no longer missed (upstream #337)
   * More reliable killing of test processes on cancellation
   * The Google Test NuGet packages link the debug or release libraries depending on the project's *Use Debug Libraries* setting, so they also work with configurations not named `Debug` or `Release` (upstream #356); the choice can be overridden with property `<package name with dashes>-LibraryConfiguration`
 

@@ -19,7 +19,8 @@ namespace GoogleTestAdapter.Runners
 {
     public class SequentialTestRunner : ITestRunner
     {
-        private bool _canceled;
+        private volatile bool _canceled;
+        private readonly object _cancelLock = new object();
 
         private readonly string _threadName;
         private readonly int _threadId;
@@ -135,10 +136,13 @@ namespace GoogleTestAdapter.Runners
 
         public void Cancel()
         {
-            _canceled = true;
-            if (_settings.KillProcessesOnCancel)
+            lock (_cancelLock)
             {
-                _processExecutor?.Cancel();
+                _canceled = true;
+                if (_settings.KillProcessesOnCancel)
+                {
+                    _processExecutor?.Cancel();
+                }
             }
         }
 
@@ -289,13 +293,23 @@ namespace GoogleTestAdapter.Runners
                 }
             }
 
-            _processExecutor = isBeingDebugged
-                ? _settings.DebuggerKind == DebuggerKind.VsTestFramework
-                    ? processExecutorFactory.CreateFrameworkDebuggingExecutor(printTestOutput, _logger)
-                    : processExecutorFactory.CreateNativeDebuggingExecutor(
-                        _settings.DebuggerKind == DebuggerKind.Native ? DebuggerEngine.Native : DebuggerEngine.ManagedAndNative, 
-                        printTestOutput, _logger)
-                : processExecutorFactory.CreateExecutor(printTestOutput, _logger);
+            lock (_cancelLock)
+            {
+                _processExecutor = isBeingDebugged
+                    ? _settings.DebuggerKind == DebuggerKind.VsTestFramework
+                        ? processExecutorFactory.CreateFrameworkDebuggingExecutor(printTestOutput, _logger)
+                        : processExecutorFactory.CreateNativeDebuggingExecutor(
+                            _settings.DebuggerKind == DebuggerKind.Native ? DebuggerEngine.Native : DebuggerEngine.ManagedAndNative,
+                            printTestOutput, _logger)
+                    : processExecutorFactory.CreateExecutor(printTestOutput, _logger);
+
+                // execution might have been canceled after the check in RunTestsFromExecutable(), i.e., Cancel() has
+                // been called on the previous executor; the executable is then not started at all
+                if (_canceled)
+                {
+                    _processExecutor.Cancel();
+                }
+            }
             int exitCode;
             using (StartTimeoutWatchdog(executable, arguments.TestCases, isBeingDebugged, isTestOutputAvailable, streamingParser))
             {

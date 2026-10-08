@@ -71,6 +71,22 @@ namespace GoogleTestAdapter.Tests.Common.Tests
             ProcessExecutor.ExecuteCommandBlocking("cmd.exe", "/C \"echo 2\"", ".", "", new Dictionary<string, string>(), line => { });
         }
 
+        protected void Test_CancelBeforeExecution_ProcessIsNotStarted()
+        {
+            ProcessExecutor.Cancel();
+
+            var output = new List<string>();
+            var stopwatch = Stopwatch.StartNew();
+            int exitCode = ProcessExecutor.ExecuteCommandBlocking(
+                Path.Combine(Environment.SystemDirectory, "ping.exe"), "-n 5 127.0.0.1", ".", "", new Dictionary<string, string>(),
+                line => output.Add(line));
+            stopwatch.Stop();
+
+            exitCode.Should().Be(int.MaxValue);
+            output.Should().BeEmpty();
+            stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(2));
+        }
+
         protected void Test_Cancel_KillsProcessTree()
         {
             // cmd.exe starts ping.exe, which keeps running (and keeps the output pipe open) if only cmd.exe is killed

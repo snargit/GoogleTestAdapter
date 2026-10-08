@@ -39,15 +39,21 @@ namespace GoogleTestAdapter.TestResults
         public string ErrorStackTrace { get; private set; }
 
         private string _outputBeforeFirstFailure = "";
+        private readonly string _testName;
         private IList<string> ErrorMessages { get; }
 
-        public ErrorMessageParser(string consoleOutput)
+        /// <param name="testName">If provided, stack trace entries of failures are labeled with the test's name
+        /// (as for .NET tests, which helps tools like Copilot to relate them to the test) rather than with file and line</param>
+        public ErrorMessageParser(string consoleOutput, string testName = null)
         {
+            _testName = testName;
             ErrorMessages = SplitConsoleOutput(consoleOutput);
         }
 
-        public ErrorMessageParser(XmlNodeList failureNodes)
+        /// <param name="testName">See <see cref="ErrorMessageParser(string, string)"/></param>
+        public ErrorMessageParser(XmlNodeList failureNodes, string testName = null)
         {
+            _testName = testName;
             ErrorMessages = (from XmlNode failureNode in failureNodes select failureNode.InnerText).ToList();
         }
 
@@ -152,7 +158,9 @@ namespace GoogleTestAdapter.TestResults
 
             string msgReference = msgId == 0 ? "" : $"#{msgId} - ";
 
-            stackTrace = CreateStackTraceEntry($"{msgReference}{fileName}:{lineNumber}", fullFileName, lineNumber);
+            string label = _testName ?? $"{fileName}:{lineNumber}";
+
+            stackTrace = CreateStackTraceEntry($"{msgReference}{label}", fullFileName, lineNumber);
             errorMessage = errorMessage.Replace(match.Value, "").Trim();
 
             match = ScopedTraceStartRegex.Match(errorMessage);

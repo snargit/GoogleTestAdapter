@@ -188,7 +188,7 @@ namespace GoogleTestAdapter.TestResults
                     // tests skipped with GTEST_SKIP() have status "run" (Google Test >= 1.10)
                     if (testcaseNode.Attributes["result"]?.InnerText == "skipped")
                     {
-                        var skipParser = new ErrorMessageParser(testcaseNode.SelectNodes("skipped"));
+                        var skipParser = new ErrorMessageParser(testcaseNode.SelectNodes("skipped"), testCase.FullyQualifiedName);
                         skipParser.Parse();
                         testResult.Outcome = TestOutcome.Skipped;
                         testResult.ErrorMessage = skipParser.ErrorMessage == "" ? null : skipParser.ErrorMessage;
@@ -203,7 +203,7 @@ namespace GoogleTestAdapter.TestResults
                     }
                     else
                     {
-                        var parser = new ErrorMessageParser(failureNodes);
+                        var parser = new ErrorMessageParser(failureNodes, testCase.FullyQualifiedName);
                         parser.Parse();
                         testResult.Outcome = TestOutcome.Failed;
                         testResult.ErrorMessage = parser.ErrorMessage;

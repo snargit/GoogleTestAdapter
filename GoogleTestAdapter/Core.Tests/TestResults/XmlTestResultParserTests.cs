@@ -86,7 +86,7 @@ namespace GoogleTestAdapter.TestResults
             Model.TestResult skipped = results.Single(r => r.TestCase.FullyQualifiedName == "SkipSuite.skipped");
             skipped.Outcome.Should().Be(Model.TestOutcome.Skipped);
             skipped.ErrorMessage.Should().Be("not supported on this machine");
-            skipped.ErrorStackTrace.Should().Be($@"at Skip.cpp:2 in C:\src\Skip.cpp:line 2{Environment.NewLine}");
+            skipped.ErrorStackTrace.Should().Be($@"at SkipSuite.skipped in C:\src\Skip.cpp:line 2{Environment.NewLine}");
             AssertTestResultIsPassed(results.Single(r => r.TestCase.FullyQualifiedName == "SkipSuite.passing"));
         }
 

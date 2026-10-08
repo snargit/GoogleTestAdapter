@@ -51,6 +51,22 @@ namespace GoogleTestAdapter.TestResults
 
         [TestMethod]
         [TestCategory(Unit)]
+        public void Parse_TwoErrorMessagesWithTestName_StackTraceEntriesAreLabeledWithTestName()
+        {
+            string errorString = $"{FullPathOfDummyExecutable}:37: error: Expected: Yes\nActual: Maybe";
+            errorString += $"\n{FullPathOfDummyExecutable}:42: Failure\nExpected: Foo\nActual: Bar";
+
+            var parser = new ErrorMessageParser(errorString, "Suite.Test");
+            parser.Parse();
+
+            parser.ErrorMessage.Should().Be("#1 - Expected: Yes\nActual: Maybe\n#2 - Expected: Foo\nActual: Bar");
+            parser.ErrorStackTrace.Should().Be(
+                $"at #1 - Suite.Test in {FullPathOfDummyExecutable}:line 37{System.Environment.NewLine}" +
+                $"at #2 - Suite.Test in {FullPathOfDummyExecutable}:line 42{System.Environment.NewLine}");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
         public void Parse_TwoErrorMessages_BothMessagesAreParsedWithLinks()
         {
             string errorString = $"{FullPathOfDummyExecutable}:37: error: Expected: Yes\nActual: Maybe";

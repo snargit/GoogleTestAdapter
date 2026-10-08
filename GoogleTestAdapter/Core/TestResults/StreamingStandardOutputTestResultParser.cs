@@ -230,7 +230,7 @@ namespace GoogleTestAdapter.TestResults
             }
             if (IsFailedLine(line))
             {
-                ErrorMessageParser parser = new ErrorMessageParser(errorMsg);
+                ErrorMessageParser parser = new ErrorMessageParser(errorMsg, testCase.FullyQualifiedName);
                 parser.Parse();
                 return CreateFailedTestResult(
                     testCase,
@@ -245,7 +245,7 @@ namespace GoogleTestAdapter.TestResults
             if (IsSkippedLine(line))
             {
                 // just like for failed tests, the skip message (and the test's output) is the error message
-                ErrorMessageParser parser = new ErrorMessageParser(errorMsg);
+                ErrorMessageParser parser = new ErrorMessageParser(errorMsg, testCase.FullyQualifiedName);
                 parser.Parse();
                 return CreateSkippedTestResult(
                     testCase,

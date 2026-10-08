@@ -731,7 +731,7 @@ Expected: true
             parser.TestResults.Should().ContainSingle();
             parser.TestResults[0].Outcome.Should().Be(TestOutcome.Skipped);
             parser.TestResults[0].ErrorMessage.Should().Be("Not supported on this platform");
-            parser.TestResults[0].ErrorStackTrace.Should().Be($@"at test.cpp:9 in C:\...\test.cpp:line 9{Environment.NewLine}");
+            parser.TestResults[0].ErrorStackTrace.Should().Be($@"at Test.Skip in C:\...\test.cpp:line 9{Environment.NewLine}");
             parser.TestResults[0].StandardOutput.Should().BeNull();
 
             CheckStandardOutputResultParser(cases, consoleOutput, parser.TestResults, parser.CrashedTestCase);

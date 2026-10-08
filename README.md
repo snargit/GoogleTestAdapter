@@ -16,6 +16,7 @@ Changes compared to the original project:
   * The Google Test project template uses the default platform toolset of the installed Visual Studio
   * GTA warns if Microsoft's *Test Adapter for Google Test* is installed, since it [prevents GTA from being used](#tafgt_conflict)
   * Test Explorer groups tests by their C++ namespace (e.g. `outer::inner`, or `(anonymous namespace)`) when grouping by namespace, rather than putting all tests into an empty namespace; tests in the global namespace and tests without source location are still shown without namespace (upstream [#342](https://github.com/csoltenborn/GoogleTestAdapter/issues/342), [#365](https://github.com/csoltenborn/GoogleTestAdapter/issues/365))
+  * [Test case filters](#test_case_filters) support the properties `ClassName` (the test suite), `Name` (the test's name within its suite), and `Namespace` (the C++ namespace), as known from MSTest; the documented list of supported filter properties has been corrected, and there is a [command line recipe](#vstest_console_recipe) for running selected tests e.g. by coding agents
 * **[CMake projects](#cmake)**
   * The CTest test properties `LABELS` (assigned as `Label` traits), `DISABLED` (tests reported as skipped), `TIMEOUT` (tests killed after their timeout), `WORKING_DIRECTORY`, and `ENVIRONMENT` are honored, both within Visual Studio and with `VSTest.Console.exe`; this can be switched off with option *Use CTest test properties*
   * The [solution settings file](#solution_settings) and `$(SolutionDir)` are supported if a folder has been opened instead of a solution (Open Folder mode)
@@ -229,19 +230,31 @@ Note, however, that VSTest.Console.exe will not make use of GTA solution setting
 
 <a name="test_case_filters"></a>The tests to be run can be selected via the `/TestCaseFilter` option. Filters need to follow the syntax as described in the [VSTest documentation](https://github.com/microsoft/vstest/blob/main/docs/filter.md). GTA supports the following test properties:
 
-* DisplayName
-* FullyQualifiedName
-* Type
-* Author
-* TestCategory
+* FullyQualifiedName (i.e., `<suite>.<test>`, e.g. `MyParamSuite/MyFixture.Test/0` for a parameterized test)
+* DisplayName (the same as FullyQualifiedName, plus the (type) parameter for parameterized and typed tests)
+* ClassName (i.e., the test suite, e.g. `MyParamSuite/MyFixture`)
+* Name (i.e., the test's name within its suite, e.g. `Test/0`)
+* Namespace (i.e., the C++ namespace containing the test, e.g. `outer::inner` or `(anonymous namespace)`; empty for tests in the global namespace and tests without source location)
 * Source (i.e., binary containing the test)
 * CodeFilePath (i.e., source file containing the test)
-* Class
 * LineNumber
-* Id 
+* Id
 * ExecutorUri
 
-Additionally, traits can be used in test case filters. E.g., all tests having a `Duration` of `short` can be executed by means of the filter `/TestCaseFilter:"Duration=short"`.
+Additionally, traits can be used in test case filters. E.g., all tests having a `Duration` of `short` can be executed by means of the filter `/TestCaseFilter:"Duration=short"`. If a trait has the same name as `ClassName`, `Name`, or `Namespace`, the trait is used.
+
+<a name="vstest_console_recipe"></a>For example, to run tests of a single test executable (e.g. from a script or by a coding agent):
+
+```
+vstest.console.exe path\to\MyTests.exe /TestAdapterPath:<GTA directory> /TestCaseFilter:"ClassName=MySuite" /Logger:trx
+```
+
+* `vstest.console.exe` can be found in `<VS installation directory>\Common7\IDE\Extensions\TestPlatform` (or use a *Developer Command Prompt*). If GTA is installed as a VSIX, `/UseVsixExtensions:true` can be used instead of `/TestAdapterPath`; otherwise, `<GTA directory>` is the folder containing `GoogleTestAdapter.TestAdapter.dll`.
+* By default, GTA recognizes Google Test executables by scanning them; if a *Regex for test discovery* is configured (in a settings file passed with `/Settings`), only executables matching it are considered.
+* Without a .pdb file of the test executable, tests do not have source locations, and the `CodeFilePath`, `LineNumber`, and `Namespace` filter properties as well as traits assigned with the [trait macros](#trait_macros) are not available.
+* `/ListTests` lists the tests of the executable without running them.
+* Use `/TestCaseFilter:"FullyQualifiedName=MySuite.MyTest"` to run a single test, `ClassName=MySuite` to run a test suite, `Namespace=my::ns` to run all tests of a namespace, and `~` instead of `=` for substring matches (e.g. `FullyQualifiedName~MyTest`). Conditions can be negated with `!=` or `!~` and combined with `&` and `|` (see the [VSTest documentation](https://github.com/microsoft/vstest/blob/main/docs/filter.md)).
+* The console output contains the error message and a stack trace of the form `at <file>:<line> in <full path>:line <line>` for each failed test; `/Logger:trx` additionally writes these to a `.trx` file in the `TestResults` folder (use `/ResultsDirectory` to change the folder), and `/Logger:"console;verbosity=detailed"` also prints the output of the tests.
 
 #### <a name="parallelization"></a>Parallelization
 

@@ -45,10 +45,30 @@ namespace GoogleTestAdapter.TestAdapter
             if (metaDataSerialization != null)
                 testCase.Properties.Add(new TestCaseMetaDataProperty((string)metaDataSerialization));
 
-            if (vsTestCase.GetPropertyValue(HierarchyProperty) is string[] hierarchy && hierarchy.Length == 4)
-                testCase.Namespace = hierarchy[HierarchyIndexNamespace];
+            testCase.Namespace = vsTestCase.GetNamespace();
 
             return testCase;
+        }
+
+        /// <returns>The C++ namespace of the test (see <see cref="TestCase.Namespace"/>)</returns>
+        public static string GetNamespace(this VsTestCase vsTestCase)
+        {
+            return vsTestCase.GetPropertyValue(HierarchyProperty) is string[] hierarchy && hierarchy.Length == 4
+                ? hierarchy[HierarchyIndexNamespace]
+                : null;
+        }
+
+        // e.g. "Prefix/Suite/0" for "Prefix/Suite/0.Test/1" (suites may contain dots, test names may not)
+        public static string GetSuite(string fullyQualifiedName)
+        {
+            int indexOfTestName = fullyQualifiedName.LastIndexOf('.');
+            return indexOfTestName > 0 ? fullyQualifiedName.Substring(0, indexOfTestName) : fullyQualifiedName;
+        }
+
+        // e.g. "Test/1" for "Prefix/Suite/0.Test/1"
+        public static string GetTestName(string fullyQualifiedName)
+        {
+            return fullyQualifiedName.Substring(fullyQualifiedName.LastIndexOf('.') + 1);
         }
 
         public static VsTestCase ToVsTestCase(this TestCase testCase)
@@ -77,9 +97,7 @@ namespace GoogleTestAdapter.TestAdapter
         private static string[] GetHierarchy(TestCase testCase)
         {
             string fullyQualifiedName = testCase.FullyQualifiedName;
-            int indexOfTestName = fullyQualifiedName.LastIndexOf('.');
-            string suite = indexOfTestName > 0 ? fullyQualifiedName.Substring(0, indexOfTestName) : fullyQualifiedName;
-            return new[] { null, testCase.Namespace, suite, fullyQualifiedName };
+            return new[] { null, testCase.Namespace, GetSuite(fullyQualifiedName), fullyQualifiedName };
         }
 
 

@@ -135,6 +135,46 @@ namespace GoogleTestAdapter.TestResults
             parser.ErrorStackTrace.Should().BeEmpty();
             parser.ErrorMessage.Should().Contain(@"c:\users\chris\git\googletestadapter\sampletests\tests\basictests.cpp:-179");
         }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void Parse_FailureWithUnknownFile_MessageIsParsedWithoutLink()
+        {
+            string errorString = "some output\nunknown file: error: SEH exception with code 0xc0000005 thrown in the test body.\n";
+
+            var parser = new ErrorMessageParser(errorString, "Suite.Test");
+            parser.Parse();
+
+            parser.ErrorMessage.Should().Be("SEH exception with code 0xc0000005 thrown in the test body.");
+            parser.ErrorStackTrace.Should().BeEmpty();
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void Parse_FailureWithUnknownFileInNonMsvcFormat_MessageIsParsedWithoutLink()
+        {
+            string errorString = "unknown file: Failure\nC++ exception with description \"bad\" thrown in the test body.\n";
+
+            var parser = new ErrorMessageParser(errorString, "Suite.Test");
+            parser.Parse();
+
+            parser.ErrorMessage.Should().Be("C++ exception with description \"bad\" thrown in the test body.");
+            parser.ErrorStackTrace.Should().BeEmpty();
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void Parse_FailureFollowedByFailureWithUnknownFile_BothMessagesAreParsed()
+        {
+            string errorString = $"{FullPathOfDummyExecutable}:37: error: Expected: Yes\nActual: Maybe\n";
+            errorString += "unknown file: error: C++ exception with description \"bad\" thrown in the test body.\n";
+
+            var parser = new ErrorMessageParser(errorString, "Suite.Test");
+            parser.Parse();
+
+            parser.ErrorMessage.Should().Be("#1 - Expected: Yes\nActual: Maybe\n#2 - C++ exception with description \"bad\" thrown in the test body.");
+            parser.ErrorStackTrace.Should().Be($"at #1 - Suite.Test in {FullPathOfDummyExecutable}:line 37{System.Environment.NewLine}");
+        }
     }
 
 }

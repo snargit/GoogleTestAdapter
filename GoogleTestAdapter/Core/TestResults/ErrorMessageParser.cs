@@ -27,9 +27,11 @@ namespace GoogleTestAdapter.TestResults
             // "Skipped" is printed by GTEST_SKIP()
             string error = @"(?:error: |Failure\n|Skipped\n)";
 
-            SplitRegex = new Regex($"{fileAndLine}:? {error}", RegexOptions.IgnoreCase);
-            ParseRegex = new Regex($"^{fileAndLine}(?::? {error})?", RegexOptions.IgnoreCase);
-            // TODO make expression parse "unknown file: error: SEH exception with code 0xc0000005 thrown in the test body."
+            // failures without location, e.g. "unknown file: error: SEH exception with code 0xc0000005 thrown in the test body."
+            string unknownFile = "unknown file: ";
+
+            SplitRegex = new Regex($"(?:{fileAndLine}:? |{unknownFile}){error}", RegexOptions.IgnoreCase);
+            ParseRegex = new Regex($"^(?:{fileAndLine}(?::? {error})?|{unknownFile}{error})", RegexOptions.IgnoreCase);
             ScopedTraceRegex = new Regex($@"{file}\({line}\): (.*)", RegexOptions.IgnoreCase);
             ScopedTraceStartRegex
                 = new Regex(@"Google Test trace:\s*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -150,7 +152,7 @@ namespace GoogleTestAdapter.TestResults
 
             string label = _testName ?? $"{fileName}:{lineNumber}";
 
-            stackTrace = CreateStackTraceEntry($"{msgReference}{label}", fullFileName, lineNumber);
+            stackTrace = fullFileName == "" ? "" : CreateStackTraceEntry($"{msgReference}{label}", fullFileName, lineNumber);
             errorMessage = errorMessage.Replace(match.Value, "").Trim();
 
             match = ScopedTraceStartRegex.Match(errorMessage);

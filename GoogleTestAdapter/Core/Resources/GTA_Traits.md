@@ -1,12 +1,23 @@
 # Creating a trait macros header for a version of Google Test
 
-This folder contains `GTA_Traits_<version>.h`, which provides the `*_TRAITS` test macros (see the README's
-[trait macros](../../../README.md#trait_macros) section) for the Google Test version the samples are built against
-(the `ThirdParty/googletest` submodule). This document describes how to create such a header for another version of
-Google Test (or Google Mock, which uses Google Test's test macros and thus needs no extra work).
+This folder contains `GTA_Traits_<version>.h` headers, which provide the `*_TRAITS` test macros (see the README's
+[trait macros](../../../README.md#trait_macros) section) for the following versions of Google Test (or Google Mock,
+which uses Google Test's test macros and thus needs no extra work). A header is named after the first version it
+supports; versions whose test macros do not differ share a header.
 
-Headers for older versions (1.7.0 and 1.8.x) can be found in the
-[original project](https://github.com/csoltenborn/GoogleTestAdapter/tree/master/GoogleTestAdapter/Core/Resources).
+| Header | Google Test versions |
+|---|---|
+| `GTA_Traits_1.7.0.h` | 1.7.0 |
+| `GTA_Traits_1.8.0.h` | 1.8.0, 1.8.1 |
+| `GTA_Traits_1.10.0.h` | 1.10.0 |
+| `GTA_Traits_1.11.0.h` | 1.11.0 |
+| `GTA_Traits_1.12.0.h` | 1.12.0, 1.12.1 |
+| `GTA_Traits_1.13.0.h` | 1.13.0, 1.14.0 |
+| `GTA_Traits_1.15.0.h` | 1.15.0, 1.15.1, 1.15.2, 1.16.0 |
+| `GTA_Traits_1.18.0.h` | 1.17.0, 1.18.0 (used by the samples) |
+
+All headers have been verified as described [below](#verifying-a-header). This document describes how to create a
+header for another version of Google Test.
 
 ## How GTA finds traits
 
@@ -64,13 +75,14 @@ Google Test. Internal helpers used by the copied macros (e.g. `GTEST_STRINGIFY_`
 as they are. If a macro of the target version delegates to another internal macro (like `TEST` does), copy the
 macro which actually defines the test class.
 
-Name the file `GTA_Traits_<version>.h` (e.g. `GTA_Traits_1.18.0.h`), and update the README's trait macros section
-and the `Content` item in `Core/Core.csproj` if the header replaces the existing one.
+Name the file `GTA_Traits_<version>.h` (e.g. `GTA_Traits_1.18.0.h`), add a `Content` item to `Core/Core.csproj`, and
+update the table above and the README's trait macros section.
 
 ## Verifying a header
 
 Compile and run the following `probe.cpp`, which uses each macro once, against the target version
-(`GTA_Traits.h` being a copy of the new header):
+(`GTA_Traits.h` being a copy of the new header; Google Test 1.8.x and earlier need `/std:c++14` and the
+`*_TEST_CASE_*` macros instead of `*_TEST_SUITE_*`):
 
 ```cpp
 #include "GTA_Traits.h"

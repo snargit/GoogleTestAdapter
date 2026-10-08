@@ -5,12 +5,13 @@
 
 # About this fork
 
-This fork of [Google Test Adapter](https://github.com/csoltenborn/GoogleTestAdapter) supports **Visual Studio 2022 and Visual Studio 2026** (in addition to the Visual Studio versions supported by the original project), and treats CMake projects as first-class citizens alongside Visual Studio projects. Note that the downloads linked in the [installation section](#installation) (Visual Studio Marketplace, NuGet, and the original project's GitHub releases) refer to the original version 0.18.0, which contains none of the changes below.
+This fork of [Google Test Adapter](https://github.com/csoltenborn/GoogleTestAdapter) supports **Visual Studio 2017 to Visual Studio 2026** (Visual Studio 2013 and 2015 are no longer supported), and treats CMake projects as first-class citizens alongside Visual Studio projects. Note that the downloads linked in the [installation section](#installation) (Visual Studio Marketplace, NuGet, and the original project's GitHub releases) refer to the original version 0.18.0, which contains none of the changes below.
 
 Changes compared to the original project:
 
 * **Visual Studio 2022 and 2026**
   * The VSIX can be installed into VS 2022 (17.x) and VS 2026 (18.x); GTA and its sample projects build with the v143/v145 toolsets
+  * GTA requires VS 2017 or later and .NET Framework 4.6; its VS package is an async package built against the VS 2017 SDK, since VS 2022 and later no longer ship the assemblies of older SDKs
   * Updated to Google Test 1.18.0 (including the Google Test NuGet packages, which now require C++17 and support the v143/v145 toolsets; the rt-static packages are now actually built against the static CRT)
   * The sample projects are built against Google Test 1.18.0 as provided by the `ThirdParty/googletest` submodule (instead of fused copies of Google Test 1.7.0 and 1.8.1); support for building against older versions has been dropped
   * The Google Test project template uses the default platform toolset of the installed Visual Studio

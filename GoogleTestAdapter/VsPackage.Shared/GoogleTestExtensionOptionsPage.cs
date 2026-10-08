@@ -16,22 +16,21 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.ServiceModel;
-using EnvDTE;
+using System.Threading;
+using Task = System.Threading.Tasks.Task;
 using GoogleTestAdapter.Common;
 using GoogleTestAdapter.VsPackage.GTA.Helpers;
-using Microsoft.VisualStudio.AsyncPackageHelpers;
 using VsPackage.Shared.Settings;
 using TestDiscoveryOptionsDialogPage = GoogleTestAdapter.VsPackage.OptionsPages.TestDiscoveryOptionsDialogPage;
 
 namespace GoogleTestAdapter.VsPackage
 {
 
-    [AsyncPackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
+    [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     // the package must also be loaded if VS is started with a solution or folder, since e.g. debugging tests depends on it
-    [Microsoft.VisualStudio.AsyncPackageHelpers.ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string, PackageAutoLoadFlags.BackgroundLoad)]
-    [Microsoft.VisualStudio.AsyncPackageHelpers.ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string, PackageAutoLoadFlags.BackgroundLoad)]
-    [Microsoft.VisualStudio.AsyncPackageHelpers.ProvideAutoLoad(FolderOpenedUIContextString, PackageAutoLoadFlags.BackgroundLoad)]
-    [PackageRegistration(UseManagedResourcesOnly = true)]
+    [ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string, PackageAutoLoadFlags.BackgroundLoad)]
+    [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string, PackageAutoLoadFlags.BackgroundLoad)]
+    [ProvideAutoLoad(FolderOpenedUIContextString, PackageAutoLoadFlags.BackgroundLoad)]
     [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)] // Info on this package for Help/About
     [Guid(PackageGuidString)]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
@@ -40,7 +39,7 @@ namespace GoogleTestAdapter.VsPackage
     [ProvideOptionPage(typeof(TestExecutionOptionsDialogPage), OptionsCategoryName, SettingsWrapper.PageTestExecution, 0, 0, true)]
     [ProvideOptionPage(typeof(GoogleTestOptionsDialogPage), OptionsCategoryName, SettingsWrapper.PageGoogleTestName, 0, 0, true)]
     [ProvideMenuResource("Menus.ctmenu", 1)]
-    public sealed partial class GoogleTestExtensionOptionsPage : Package, IGoogleTestExtensionOptionsPage, IAsyncLoadablePackageInitialize, IDisposable
+    public sealed partial class GoogleTestExtensionOptionsPage : AsyncPackage, IGoogleTestExtensionOptionsPage, IDisposable
     {
         private const string PackageGuidString = "e7c90fcb-0943-4908-9ae8-3b6a9d22ec9e";
         // VSConstants.UICONTEXT.FolderOpened_string, which is not available in the referenced VS SDK
@@ -57,45 +56,18 @@ namespace GoogleTestAdapter.VsPackage
 
         private DebuggerAttacherServiceHost _debuggerAttacherServiceHost;
 
-        private bool _isAsyncLoadSupported;
-
-        protected override void Initialize()
+        protected override async Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
         {
-            base.Initialize();
+            await base.InitializeAsync(cancellationToken, progress);
 
-            _isAsyncLoadSupported = this.IsAsyncPackageSupported();
-            if (!_isAsyncLoadSupported)
-            {
-                var componentModel = (IComponentModel) GetGlobalService(typeof(SComponentModel));
-                _globalRunSettings = componentModel.GetService<IGlobalRunSettingsInternal>();
+            var componentModel = (IComponentModel) await GetServiceAsync(typeof(SComponentModel));
+            _globalRunSettings = componentModel.GetService<IGlobalRunSettingsInternal>();
 
-                VsSettingsStorage.Init(this);
+            VsSettingsStorage.Init(this);
 
-                DoInitialize();
-            }
-        }
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
-        IVsTask IAsyncLoadablePackageInitialize.Initialize(IAsyncServiceProvider serviceProvider, IProfferAsyncService profferService,
-            IAsyncProgressCallback progressCallback)
-        {
-            if (!_isAsyncLoadSupported)
-            {
-                throw new InvalidOperationException("Async Initialize method should not be called when async load is not supported.");
-            }
-
-            return ThreadHelper.JoinableTaskFactory.RunAsync<object>(async () =>
-            {
-                var componentModel = await serviceProvider.GetServiceAsync<IComponentModel>(typeof(SComponentModel));
-                _globalRunSettings = componentModel.GetService<IGlobalRunSettingsInternal>();
-
-                VsSettingsStorage.Init(this);
-
-                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                
-                DoInitialize();
-
-                return null;
-            }).AsVsTask();
+            DoInitialize();
         }
 
         private void DoInitialize()
@@ -248,7 +220,7 @@ namespace GoogleTestAdapter.VsPackage
         private RunSettings GetRunSettingsFromOptionPages()
         {
             var logger = new ActivityLogLogger(this, () => OutputMode.Verbose);
-            var visualStudioConfiguration = VisualStudioConfiguration.FromDte(GetService(typeof(DTE)) as DTE, logger.LogError);
+            var visualStudioConfiguration = VisualStudioConfiguration.FromServiceProvider(this, logger.LogError);
 
             return new RunSettings
             {

@@ -1,5 +1,7 @@
 ﻿using System;
-using EnvDTE;
+using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
 
 namespace GoogleTestAdapter.TestAdapter.Settings
 {
@@ -13,30 +15,38 @@ namespace GoogleTestAdapter.TestAdapter.Settings
         public string PlatformName { get; set; }
         public string ConfigurationName { get; set; }
 
-        public static VisualStudioConfiguration FromDte(DTE dte, Action<string> logError)
+        // DTE is not used since its interop types are incompatible with the managed DTE implementation of VS 2026
+        public static VisualStudioConfiguration FromServiceProvider(IServiceProvider serviceProvider, Action<string> logError)
         {
             var configuration = new VisualStudioConfiguration();
-            if (dte == null)
+            var solution = serviceProvider?.GetService(typeof(SVsSolution)) as IVsSolution;
+            if (solution == null)
                 return configuration;
 
             try
             {
+                string solutionFullName = GetSolutionFullName(solution);
                 try
                 {
-                    configuration.SolutionDir = SolutionPaths.GetSolutionDir(dte.Solution.FullName);
+                    configuration.SolutionDir = SolutionPaths.GetSolutionDir(solutionFullName);
                 }
                 catch (Exception e)
                 {
-                    logError($"Exception caught while receiving solution dir from VS instance. dte.Solution.FullName: {dte.Solution.FullName}. Exception:{Environment.NewLine}{e}");
+                    logError($"Exception caught while receiving solution dir from VS instance. Solution full name: {solutionFullName}. Exception:{Environment.NewLine}{e}");
                 }
 
-                if (dte.Solution.Projects.Count > 0)
+                var buildManager = serviceProvider.GetService(typeof(SVsSolutionBuildManager)) as IVsSolutionBuildManager;
+                var project = GetFirstProject(solution);
+                var projectConfigurations = new IVsProjectCfg[1];
+                if (buildManager != null && project != null
+                    && ErrorHandler.Succeeded(buildManager.FindActiveProjectCfg(IntPtr.Zero, IntPtr.Zero, project, projectConfigurations))
+                    && projectConfigurations[0] != null
+                    && ErrorHandler.Succeeded(projectConfigurations[0].get_CanonicalName(out string canonicalName)))
                 {
-                    var configurationManager = dte.Solution.Projects.Item(1).ConfigurationManager;
-                    var activeConfiguration = configurationManager?.ActiveConfiguration;
-
-                    configuration.PlatformName = activeConfiguration?.PlatformName;
-                    configuration.ConfigurationName = activeConfiguration?.ConfigurationName;
+                    // canonical names have the format "ConfigurationName|PlatformName"
+                    string[] parts = canonicalName.Split('|');
+                    configuration.ConfigurationName = parts[0];
+                    configuration.PlatformName = parts.Length > 1 ? parts[1] : null;
                 }
             }
             catch (Exception e)
@@ -45,6 +55,42 @@ namespace GoogleTestAdapter.TestAdapter.Settings
             }
 
             return configuration;
+        }
+
+        /// <summary>
+        /// The full name of the solution file, or the opened folder if VS is in Open Folder mode.
+        /// </summary>
+        public static string GetSolutionFullName(IServiceProvider serviceProvider)
+        {
+            var solution = serviceProvider?.GetService(typeof(SVsSolution)) as IVsSolution;
+            return solution == null ? null : GetSolutionFullName(solution);
+        }
+
+        private static string GetSolutionFullName(IVsSolution solution)
+        {
+            string solutionFileName = GetStringProperty(solution, __VSPROPID.VSPROPID_SolutionFileName);
+            return string.IsNullOrEmpty(solutionFileName)
+                ? GetStringProperty(solution, __VSPROPID.VSPROPID_SolutionDirectory)
+                : solutionFileName;
+        }
+
+        private static string GetStringProperty(IVsSolution solution, __VSPROPID property)
+        {
+            return ErrorHandler.Succeeded(solution.GetProperty((int)property, out object value))
+                ? value as string
+                : null;
+        }
+
+        private static IVsHierarchy GetFirstProject(IVsSolution solution)
+        {
+            Guid ignored = Guid.Empty;
+            if (ErrorHandler.Failed(solution.GetProjectEnum((uint)__VSENUMPROJFLAGS.EPF_LOADEDINSOLUTION, ref ignored, out IEnumHierarchies projects)))
+                return null;
+
+            var hierarchies = new IVsHierarchy[1];
+            return projects.Next(1, hierarchies, out uint fetched) == VSConstants.S_OK && fetched == 1
+                ? hierarchies[0]
+                : null;
         }
     }
 }

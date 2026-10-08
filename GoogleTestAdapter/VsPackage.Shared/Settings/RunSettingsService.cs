@@ -1,6 +1,5 @@
 ﻿// This file has been modified by Microsoft on 6/2017.
 
-using EnvDTE;
 using GoogleTestAdapter.Settings;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.TestPlatform.ObjectModel;
@@ -127,16 +126,21 @@ namespace GoogleTestAdapter.TestAdapter.Settings
         // protected for testing
         protected virtual VisualStudioConfiguration GetVisualStudioConfiguration(ILogger logger)
         {
-            DTE dte = Package.GetGlobalService(typeof(DTE)) as DTE;
-            return VisualStudioConfiguration.FromDte(dte, message => logger.Log(MessageLevel.Error, message));
+            return ThreadHelper.JoinableTaskFactory.Run(async () =>
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                return VisualStudioConfiguration.FromServiceProvider(ServiceProvider.GlobalProvider, message => logger.Log(MessageLevel.Error, message));
+            });
         }
 
         // protected for testing
         protected virtual string GetSolutionSettingsXmlFile()
         {
-            DTE dte = Package.GetGlobalService(typeof(DTE)) as DTE;
-            Debug.Assert(dte != null, "dte == null!");
-            return SolutionPaths.GetSolutionSettingsFile(dte.Solution.FullName);
+            return ThreadHelper.JoinableTaskFactory.Run(async () =>
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                return SolutionPaths.GetSolutionSettingsFile(VisualStudioConfiguration.GetSolutionFullName(ServiceProvider.GlobalProvider));
+            });
         }
 
     }

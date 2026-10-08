@@ -15,7 +15,7 @@
 
     <!-- Commonly used test adapter-flavored properties. -->
     <PropertyGroup Condition="'$(TestAdapterFlavor)' == 'GTA'">
-        <FlavoredTargetFrameworkVersion>v4.5</FlavoredTargetFrameworkVersion>
+        <FlavoredTargetFrameworkVersion>v4.6</FlavoredTargetFrameworkVersion>
     </PropertyGroup>
     <PropertyGroup Condition="'$(TestAdapterFlavor)' == 'TAfGT'">
         <FlavoredTargetFrameworkVersion>v4.6</FlavoredTargetFrameworkVersion>

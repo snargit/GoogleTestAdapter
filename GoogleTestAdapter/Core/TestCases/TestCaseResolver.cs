@@ -160,27 +160,61 @@ namespace GoogleTestAdapter.TestCases
 
         private TestCaseLocation DoFindTestCaseLocation(List<MethodSignature> testMethodSignatures)
         {
-            var sourceFileLocation =  _allTestMethodSymbols
-                .FirstOrDefault(nsfl => testMethodSignatures.Any(tms => IsMatch(nsfl, tms))); 
-            return sourceFileLocation != null
-                ? ToTestCaseLocation(sourceFileLocation)
-                : null;
+            foreach (SourceFileLocation sourceFileLocation in _allTestMethodSymbols)
+            {
+                foreach (MethodSignature methodSignature in testMethodSignatures)
+                {
+                    Match match = GetMatch(sourceFileLocation, methodSignature);
+                    if (match != null)
+                    {
+                        TestCaseLocation testCaseLocation = ToTestCaseLocation(sourceFileLocation);
+                        testCaseLocation.Namespace = GetNamespace(match);
+                        return testCaseLocation;
+                    }
+                }
+            }
+            return null;
         }
 
-        private bool IsMatch(SourceFileLocation sourceFileLocation, MethodSignature methodSignature)
+        private Match GetMatch(SourceFileLocation sourceFileLocation, MethodSignature methodSignature)
         {
             string signature = methodSignature.Signature;
 
             bool generalCheck = methodSignature.IsRegex
                 ? Regex.IsMatch(sourceFileLocation.Symbol, signature)
                 : sourceFileLocation.Symbol.Contains(signature);
+            if (!generalCheck)
+                return null;
 
-            return generalCheck && Regex.IsMatch(sourceFileLocation.Symbol, GetPreciseRegex(signature));
+            Match match = Regex.Match(sourceFileLocation.Symbol, GetPreciseRegex(signature));
+            return match.Success ? match : null;
         }
+
+        private const string NamespaceGroup = "namespace";
+        private const string AnonymousNamespaceSymbol = "`anonymous namespace'";
+        public const string AnonymousNamespace = "(anonymous namespace)";
 
         private string GetPreciseRegex(string signature)
         {
-            return $@"^(?:(?:(?:\w+)|(?:`anonymous namespace'))::)*{signature}";
+            return $@"^(?<{NamespaceGroup}>(?:(?:(?:\w+)|(?:{AnonymousNamespaceSymbol}))::)*){signature}";
+        }
+
+        // MSVC's internal name of an anonymous namespace, used by DIA e.g. for an anonymous namespace containing another one
+        private static readonly Regex InternalAnonymousNamespaceRegex = new Regex(@"^A0x[0-9a-fA-F]{8}$");
+
+        // e.g. "outer::`anonymous namespace'::" => "outer::(anonymous namespace)"
+        private static string GetNamespace(Match match)
+        {
+            string ns = match.Groups[NamespaceGroup].Value;
+            if (ns.Length == 0)
+                return ns;
+
+            var parts = ns.Substring(0, ns.Length - 2)
+                .Split(new[] { "::" }, StringSplitOptions.None)
+                .Select(part => part == AnonymousNamespaceSymbol || InternalAnonymousNamespaceRegex.IsMatch(part)
+                    ? AnonymousNamespace
+                    : part);
+            return string.Join("::", parts);
         }
 
         private TestCaseLocation ToTestCaseLocation(SourceFileLocation location)

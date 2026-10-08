@@ -3,6 +3,7 @@ using FluentAssertions;
 using GoogleTestAdapter.Model;
 using GoogleTestAdapter.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using VsTestProperty = Microsoft.VisualStudio.TestPlatform.ObjectModel.TestProperty;
 using VsTestResultMessage = Microsoft.VisualStudio.TestPlatform.ObjectModel.TestResultMessage;
 using static GoogleTestAdapter.Tests.Common.TestMetadata.TestCategories;
 
@@ -42,5 +43,49 @@ namespace GoogleTestAdapter.TestAdapter
 
             testResult.ToVsTestResult().Messages.Should().BeEmpty();
         }
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void ToVsTestCase_TestCaseWithNamespace_HierarchyIsSet()
+        {
+            var testCase = new TestCase("Suite/0.Test", "foo.exe", "Suite/0.Test", "foo.cpp", 1)
+            {
+                Namespace = "outer::(anonymous namespace)"
+            };
+
+            var hierarchy = (string[])testCase.ToVsTestCase().GetPropertyValue(HierarchyProperty);
+
+            hierarchy.Should().Equal(null, "outer::(anonymous namespace)", "Suite/0", "Suite/0.Test");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void ToVsTestCase_TestCaseInGlobalNamespace_HierarchyHasEmptyNamespace()
+        {
+            var testCase = new TestCase("Suite.Test", "foo.exe", "Suite.Test", "foo.cpp", 1) { Namespace = "" };
+
+            var hierarchy = (string[])testCase.ToVsTestCase().GetPropertyValue(HierarchyProperty);
+
+            hierarchy.Should().Equal(null, "", "Suite", "Suite.Test");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void ToVsTestCase_TestCaseWithoutNamespace_HierarchyIsNotSet()
+        {
+            var testCase = new TestCase("Suite.Test", "foo.exe", "Suite.Test", "", 0);
+
+            testCase.ToVsTestCase().GetPropertyValue(HierarchyProperty).Should().BeNull();
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void ToTestCase_VsTestCaseWithHierarchy_NamespaceIsRestored()
+        {
+            var testCase = new TestCase("Suite.Test", "foo.exe", "Suite.Test", "foo.cpp", 1) { Namespace = "outer::inner" };
+
+            testCase.ToVsTestCase().ToTestCase().Namespace.Should().Be("outer::inner");
+        }
+
+        private static VsTestProperty HierarchyProperty => VsTestProperty.Find("TestCase.Hierarchy");
     }
 }

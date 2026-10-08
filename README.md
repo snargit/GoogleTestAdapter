@@ -15,6 +15,7 @@ Changes compared to the original project:
   * The sample projects are built against Google Test 1.18.0 as provided by the `ThirdParty/googletest` submodule (instead of fused copies of Google Test 1.7.0 and 1.8.1); support for building against older versions has been dropped
   * The Google Test project template uses the default platform toolset of the installed Visual Studio
   * GTA warns if Microsoft's *Test Adapter for Google Test* is installed, since it [prevents GTA from being used](#tafgt_conflict)
+  * Test Explorer groups tests by their C++ namespace (e.g. `outer::inner`, or `(anonymous namespace)`) when grouping by namespace, rather than putting all tests into an empty namespace; tests in the global namespace and tests without source location are still shown without namespace (upstream [#342](https://github.com/csoltenborn/GoogleTestAdapter/issues/342), [#365](https://github.com/csoltenborn/GoogleTestAdapter/issues/365))
 * **[CMake projects](#cmake)**
   * The CTest test properties `LABELS` (assigned as `Label` traits), `DISABLED` (tests reported as skipped), `TIMEOUT` (tests killed after their timeout), `WORKING_DIRECTORY`, and `ENVIRONMENT` are honored, both within Visual Studio and with `VSTest.Console.exe`; this can be switched off with option *Use CTest test properties*
   * The [solution settings file](#solution_settings) and `$(SolutionDir)` are supported if a folder has been opened instead of a solution (Open Folder mode)

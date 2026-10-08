@@ -201,7 +201,10 @@ namespace GoogleTestAdapter.TestCases
             if (location != null)
             {
                 var testCase = new TestCase(
-                    descriptor.FullyQualifiedName, _executable, descriptor.DisplayName, location.Sourcefile, (int)location.Line);
+                    descriptor.FullyQualifiedName, _executable, descriptor.DisplayName, location.Sourcefile, (int)location.Line)
+                {
+                    Namespace = location.Namespace
+                };
                 testCase.Traits.AddRange(GetFinalTraits(descriptor.DisplayName, WithLabelTraits(descriptor, location.Traits)));
                 return testCase;
             }

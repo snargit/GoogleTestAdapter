@@ -13,6 +13,12 @@ namespace GoogleTestAdapter.Model
         public string CodeFilePath { get; }
         public int LineNumber { get; }
 
+        /// <summary>
+        /// C++ namespace the test is defined in, e.g. "outer::inner" or "(anonymous namespace)"; empty for the
+        /// global namespace, null if unknown (i.e., if the test's symbol could not be resolved)
+        /// </summary>
+        public string Namespace { get; set; }
+
         public List<Trait> Traits { get; } = new List<Trait>();
         public List<TestProperty> Properties { get; } = new List<TestProperty>();
 

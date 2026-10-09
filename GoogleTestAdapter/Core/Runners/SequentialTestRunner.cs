@@ -223,6 +223,21 @@ namespace GoogleTestAdapter.Runners
             }
         }
 
+        public static DebuggerEngine GetDebuggerEngine(DebuggerKind debuggerKind)
+        {
+            switch (debuggerKind)
+            {
+                case DebuggerKind.Native:
+                    return DebuggerEngine.Native;
+                case DebuggerKind.ManagedAndNative:
+                    return DebuggerEngine.ManagedAndNative;
+                case DebuggerKind.ManagedCoreAndNative:
+                    return DebuggerEngine.ManagedCoreAndNative;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(debuggerKind), debuggerKind, "Debugger kind has no debugger engine");
+            }
+        }
+
         public static void LogExecutionError(ILogger logger, string executable, string workingDir, string arguments, Exception exception, string threadName = "")
         {
             logger.LogError($"{threadName}Failed to run test executable '{executable}': {exception.Message}");
@@ -299,8 +314,7 @@ namespace GoogleTestAdapter.Runners
                     ? _settings.DebuggerKind == DebuggerKind.VsTestFramework
                         ? processExecutorFactory.CreateFrameworkDebuggingExecutor(printTestOutput, _logger)
                         : processExecutorFactory.CreateNativeDebuggingExecutor(
-                            _settings.DebuggerKind == DebuggerKind.Native ? DebuggerEngine.Native : DebuggerEngine.ManagedAndNative,
-                            printTestOutput, _logger)
+                            GetDebuggerEngine(_settings.DebuggerKind), printTestOutput, _logger)
                     : processExecutorFactory.CreateExecutor(printTestOutput, _logger);
 
                 // execution might have been canceled after the check in RunTestsFromExecutable(), i.e., Cancel() has

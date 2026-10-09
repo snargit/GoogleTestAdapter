@@ -135,6 +135,7 @@
 				  <xsd:enumeration value="VsTestFramework"/>
 				  <xsd:enumeration value="Native"/>
 				  <xsd:enumeration value="ManagedAndNative"/>
+				  <xsd:enumeration value="ManagedCoreAndNative"/>
 			  </xsd:restriction>
 		  </xsd:simpleType>
       </xsd:element>

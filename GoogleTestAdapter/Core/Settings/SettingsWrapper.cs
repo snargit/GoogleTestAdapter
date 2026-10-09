@@ -328,7 +328,8 @@ namespace GoogleTestAdapter.Settings
         public const string OptionDebuggerKindDescription =
                 DebuggerKindConverter.VsTestFramework + ": Debugger engine as provided by the VsTest framework; no test crash detection, no test output printing, less interactive UI\n" +
                 DebuggerKindConverter.Native + ": Debugger engine as provided by VS native API; no restrictions (default)\n" + 
-                DebuggerKindConverter.ManagedAndNative + ": Same as '" + DebuggerKindConverter.Native + "', but allows to also debug into managed code";
+                DebuggerKindConverter.ManagedAndNative + ": Same as '" + DebuggerKindConverter.Native + "', but allows to also debug into managed code of the .NET Framework\n" +
+                DebuggerKindConverter.ManagedCoreAndNative + ": Same as '" + DebuggerKindConverter.Native + "', but allows to also debug into managed code of .NET Core and .NET 5 or later";
         public const DebuggerKind OptionDebuggerKindDefaultValue = DebuggerKind.Native;
 
         public virtual DebuggerKind DebuggerKind => _currentSettings.DebuggerKind ?? OptionDebuggerKindDefaultValue;

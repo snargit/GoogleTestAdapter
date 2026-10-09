@@ -195,7 +195,7 @@ namespace GoogleTestAdapter.Settings
         public const string OptionTimestampOutput = "Timestamp output";
         public const string OptionTimestampOutputDescription =
             "Controls whether a timestamp is added to the output.\n" + 
-            TimestampModeConverter.Automatic + ": add timestamp on VS2013, VS2015\n" +
+            TimestampModeConverter.Automatic + ": add timestamp only if the test host does not add one itself (e.g. if the version of Visual Studio can not be determined)\n" +
             TimestampModeConverter.PrintTimeStamp + ": always add timestamp\n" + 
             TimestampModeConverter.DoNotPrintTimeStamp + ": never add timestamp";
         public const TimestampMode OptionTimestampOutputDefaultValue = TimestampMode.Automatic;
@@ -206,7 +206,7 @@ namespace GoogleTestAdapter.Settings
         public const string OptionSeverityMode = "Print severity";
         public const string OptionSeverityModeDescription =
             "Controls whether the messages' severity is added to the output.\n" + 
-            SeverityModeConverter.Automatic + ": print severity on VS2013, VS2015\n" +
+            SeverityModeConverter.Automatic + ": print severity only if the test host does not print it itself (e.g. if the version of Visual Studio can not be determined)\n" +
             SeverityModeConverter.PrintSeverity + ": always print severity\n" +
             SeverityModeConverter.DoNotPrintSeverity + ": never print severity";
         public const SeverityMode OptionSeverityModeDefaultValue = SeverityMode.Automatic;

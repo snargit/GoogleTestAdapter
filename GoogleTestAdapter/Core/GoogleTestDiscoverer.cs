@@ -52,6 +52,9 @@ namespace GoogleTestAdapter
                 if (!VerifyExecutableTrust(executable, settings, logger) || !IsGoogleTestExecutable(executable, settings.TestDiscoveryRegex, logger))
                     return;
 
+                // discovery of executables with many tests takes a while, and their tests are only reported at the end
+                logger.LogInfo("Discovering tests in executable " + executable);
+
                 int nrOfTestCases = 0;
                 void ReportTestCases(TestCase testCase)
                 {

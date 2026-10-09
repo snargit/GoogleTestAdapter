@@ -424,6 +424,28 @@ namespace GoogleTestAdapter
 
         [TestMethod]
         [TestCategory(Integration)]
+        public void GetTestsFromExecutable_TypedAndParameterizedTests_InstancesShareTestClassAndGroup()
+        {
+            IList<TestCase> testCases = new GoogleTestDiscoverer(TestEnvironment.Logger, TestEnvironment.Options)
+                .GetTestsFromExecutable(TestResources.Tests_DebugX86);
+
+            testCases.Where(tc => tc.FullyQualifiedName.Contains(".Simple/"))
+                .Should().HaveCount(4)
+                .And.OnlyContain(tc => tc.TestClass == "ParameterizedTests" && tc.TestGroup == "Simple");
+            testCases.Where(tc => tc.FullyQualifiedName.StartsWith("TypedTests/") && tc.FullyQualifiedName.EndsWith(".CanIterate"))
+                .Should().HaveCount(3)
+                .And.OnlyContain(tc => tc.TestClass == "TypedTests" && tc.TestGroup == "CanIterate");
+            testCases.Where(tc => tc.FullyQualifiedName.Contains("/TypeParameterizedTests/") && tc.FullyQualifiedName.EndsWith(".CanIterate"))
+                .Should().HaveCount(3)
+                .And.OnlyContain(tc => tc.TestClass == "TypeParameterizedTests" && tc.TestGroup == "CanIterate");
+
+            TestCase plainTest = testCases.Single(tc => tc.FullyQualifiedName == "TestMath.AddPasses");
+            plainTest.TestClass.Should().Be("TestMath");
+            plainTest.TestGroup.Should().Be("AddPasses");
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
         public void GetTestsFromExecutable_TestsRegisteredAtRuntime_LocationsAreProvidedByGoogleTest()
         {
             IList<TestCase> testCases = new GoogleTestDiscoverer(TestEnvironment.Logger, TestEnvironment.Options)

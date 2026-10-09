@@ -19,6 +19,14 @@ namespace GoogleTestAdapter.Model
         /// </summary>
         public string Namespace { get; set; }
 
+        /// <summary>
+        /// Class and test group Test Explorer shows the test in: the test suite and the test's name as written in the
+        /// code, i.e. instances of typed and parameterized tests share them (e.g. "Suite" and "Test" for
+        /// "Prefix/Suite.Test/0"); null if unknown, in which case they are derived from the fully qualified name
+        /// </summary>
+        public string TestClass { get; set; }
+        public string TestGroup { get; set; }
+
         public List<Trait> Traits { get; } = new List<Trait>();
         public List<TestProperty> Properties { get; } = new List<TestProperty>();
 

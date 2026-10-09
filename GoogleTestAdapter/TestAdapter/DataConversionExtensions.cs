@@ -26,6 +26,8 @@ namespace GoogleTestAdapter.TestAdapter
         // and class from the fully qualified name (i.e., the namespace is always empty for Google Test names)
         private static readonly VsTestProperty HierarchyProperty;
         private const int HierarchyIndexNamespace = 1;
+        private const int HierarchyIndexClass = 2;
+        private const int HierarchyIndexTestGroup = 3;
 
         static DataConversionExtensions()
         {
@@ -45,7 +47,12 @@ namespace GoogleTestAdapter.TestAdapter
             if (metaDataSerialization != null)
                 testCase.Properties.Add(new TestCaseMetaDataProperty((string)metaDataSerialization));
 
-            testCase.Namespace = vsTestCase.GetNamespace();
+            if (vsTestCase.GetPropertyValue(HierarchyProperty) is string[] hierarchy && hierarchy.Length == 4)
+            {
+                testCase.Namespace = hierarchy[HierarchyIndexNamespace];
+                testCase.TestClass = hierarchy[HierarchyIndexClass];
+                testCase.TestGroup = hierarchy[HierarchyIndexTestGroup];
+            }
 
             return testCase;
         }
@@ -86,18 +93,24 @@ namespace GoogleTestAdapter.TestAdapter
             if (property != null)
                 vsTestCase.SetPropertyValue(TestMetaDataProperty, property.Serialization);
 
-            if (testCase.Namespace != null)
-                vsTestCase.SetPropertyValue(HierarchyProperty, GetHierarchy(testCase));
+            vsTestCase.SetPropertyValue(HierarchyProperty, GetHierarchy(testCase));
 
             return vsTestCase;
         }
 
-        // project (filled in by VS if null), namespace, class (i.e., the test suite), test group (as derived by VS
-        // from the fully qualified name if the property is not set)
+        // project (filled in by VS if null), namespace (empty if unknown), class (i.e., the test suite), test group
+        // (i.e., the test's name); instances of typed and parameterized tests share class and test group, which makes
+        // Test Explorer show them below a common node (upstream #210)
         private static string[] GetHierarchy(TestCase testCase)
         {
             string fullyQualifiedName = testCase.FullyQualifiedName;
-            return new[] { null, testCase.Namespace, GetSuite(fullyQualifiedName), fullyQualifiedName };
+            return new[]
+            {
+                null,
+                testCase.Namespace ?? "",
+                testCase.TestClass ?? GetSuite(fullyQualifiedName),
+                testCase.TestGroup ?? GetTestName(fullyQualifiedName)
+            };
         }
 
 

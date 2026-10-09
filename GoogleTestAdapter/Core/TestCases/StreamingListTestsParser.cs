@@ -66,7 +66,38 @@ namespace GoogleTestAdapter.TestCases
             else if (string.IsNullOrWhiteSpace(param) ? IsParamRegexPreNamedParameters.IsMatch(name) : IsParamRegex.IsMatch(name))
                 testType = TestCaseDescriptor.TestTypes.Parameterized;
 
-            return new TestCaseDescriptor(suite, name, fullyQualifiedName, displayName, testType);
+            // older versions of Google Test do not always print the type and value parameters
+            bool isTyped = !string.IsNullOrEmpty(typeParam) || testType == TestCaseDescriptor.TestTypes.TypeParameterized;
+            bool isValueParameterized = !string.IsNullOrEmpty(param) || testType == TestCaseDescriptor.TestTypes.Parameterized;
+            return new TestCaseDescriptor(suite, name, fullyQualifiedName, displayName, testType,
+                GetTestClass(suite, isTyped, isValueParameterized),
+                GetTestGroup(name, isValueParameterized));
+        }
+
+        // Instances of typed and parameterized tests are grouped by the suite as written in the code, i.e. without
+        // instantiation prefix and type index: "Prefix/Suite/0" (type-parameterized), "Suite/0" (typed) and
+        // "Prefix/Suite" (value-parameterized) => "Suite" (upstream #210)
+        public static string GetTestClass(string suite, bool isTyped, bool isValueParameterized)
+        {
+            string testClass = suite;
+            if (isTyped)
+            {
+                int indexOfTypeIndex = testClass.LastIndexOf('/');
+                if (indexOfTypeIndex > 0)
+                    testClass = testClass.Substring(0, indexOfTypeIndex);
+            }
+            if (isTyped || isValueParameterized)
+            {
+                testClass = testClass.Substring(testClass.LastIndexOf('/') + 1);
+            }
+            return testClass;
+        }
+
+        // "Test/0" and "Test/MyName" (value-parameterized) => "Test"
+        public static string GetTestGroup(string name, bool isValueParameterized)
+        {
+            int indexOfParamIndex = name.IndexOf('/');
+            return isValueParameterized && indexOfParamIndex > 0 ? name.Substring(0, indexOfParamIndex) : name;
         }
 
         private static string GetDisplayName(string fullyQalifiedName, string typeParam, string param)

@@ -224,11 +224,12 @@ namespace GoogleTestAdapter.TestCases
                 xmlLocations.TryGetValue(descriptor.FullyQualifiedName, out location);
             }
 
-            if (location == null && !_settings.ParseSymbolInformation)
-            {
-                return CreateTestCase(descriptor);
-            }
-            return CreateTestCase(descriptor, location);
+            TestCase testCase = location == null && !_settings.ParseSymbolInformation
+                ? CreateTestCase(descriptor)
+                : CreateTestCase(descriptor, location);
+            testCase.TestClass = descriptor.TestClass;
+            testCase.TestGroup = descriptor.TestGroup;
+            return testCase;
         }
 
         private TestCase CreateTestCase(TestCaseDescriptor descriptor, TestCaseLocation location)

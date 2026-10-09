@@ -54,7 +54,7 @@ namespace GoogleTestAdapter.TestAdapter
 
             var hierarchy = (string[])testCase.ToVsTestCase().GetPropertyValue(HierarchyProperty);
 
-            hierarchy.Should().Equal(null, "outer::(anonymous namespace)", "Suite/0", "Suite/0.Test");
+            hierarchy.Should().Equal(null, "outer::(anonymous namespace)", "Suite/0", "Test");
         }
 
         [TestMethod]
@@ -65,16 +65,52 @@ namespace GoogleTestAdapter.TestAdapter
 
             var hierarchy = (string[])testCase.ToVsTestCase().GetPropertyValue(HierarchyProperty);
 
-            hierarchy.Should().Equal(null, "", "Suite", "Suite.Test");
+            hierarchy.Should().Equal(null, "", "Suite", "Test");
         }
 
         [TestMethod]
         [TestCategory(Unit)]
-        public void ToVsTestCase_TestCaseWithoutNamespace_HierarchyIsNotSet()
+        public void ToVsTestCase_TestCaseWithUnknownNamespace_HierarchyHasEmptyNamespace()
         {
             var testCase = new TestCase("Suite.Test", "foo.exe", "Suite.Test", "", 0);
 
-            testCase.ToVsTestCase().GetPropertyValue(HierarchyProperty).Should().BeNull();
+            var hierarchy = (string[])testCase.ToVsTestCase().GetPropertyValue(HierarchyProperty);
+
+            hierarchy.Should().Equal(null, "", "Suite", "Test");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void ToVsTestCase_ParameterizedTestCase_HierarchyContainsTestClassAndGroup()
+        {
+            var testCase = new TestCase("Prefix/Suite.Test/0", "foo.exe", "Prefix/Suite.Test/0 [42]", "foo.cpp", 1)
+            {
+                Namespace = "outer",
+                TestClass = "Suite",
+                TestGroup = "Test"
+            };
+
+            var vsTestCase = testCase.ToVsTestCase();
+
+            ((string[])vsTestCase.GetPropertyValue(HierarchyProperty)).Should().Equal(null, "outer", "Suite", "Test");
+            vsTestCase.FullyQualifiedName.Should().Be("Prefix/Suite.Test/0");
+            vsTestCase.DisplayName.Should().Be("Prefix/Suite.Test/0 [42]");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void ToTestCase_VsTestCaseWithHierarchy_TestClassAndGroupAreRestored()
+        {
+            var testCase = new TestCase("Prefix/Suite.Test/0", "foo.exe", "Prefix/Suite.Test/0", "foo.cpp", 1)
+            {
+                TestClass = "Suite",
+                TestGroup = "Test"
+            };
+
+            TestCase restored = testCase.ToVsTestCase().ToTestCase();
+
+            restored.TestClass.Should().Be("Suite");
+            restored.TestGroup.Should().Be("Test");
         }
 
         [TestMethod]

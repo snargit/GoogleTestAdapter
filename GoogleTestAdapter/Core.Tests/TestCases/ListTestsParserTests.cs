@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using FluentAssertions;
 using GoogleTestAdapter.Tests.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -202,6 +203,53 @@ namespace GoogleTestAdapter.TestCases
             descriptors[0].FullyQualifiedName.Should().Be("InstantiationName/ParameterizedTests.Simple/0");
             descriptors[0].DisplayName.Should().Be("InstantiationName::ParameterizedTests.Simple::0");
             descriptors[0].TestType.Should().Be(TestCaseDescriptor.TestTypes.Parameterized);
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void ParseListTestsOutput_TypedAndParameterizedTests_InstancesShareTestClassAndGroup()
+        {
+            var consoleOutput = new List<string>
+            {
+                "MySuite.",
+                "  MyTest",
+                "Api.Created.Tests.",
+                "  PassingTest",
+                "InstantiationName/ParameterizedTests.",
+                "  Simple/0  # GetParam() = (1,)",
+                "  Simple/1  # GetParam() = (1,!)",
+                "ParameterizedTests.",
+                "  Simple/0  # GetParam() = (0,_)",
+                "AllAllowedCharacters/CustomFunctorNamingTest.",
+                "  CustomTestNames/abcdefghijklmnopqrstuvwxyz  # GetParam() = \"abcdefghijklmnopqrstuvwxyz\"",
+                "TypedTests/0.  # TypeParam = class std::vector<int,class std::allocator<int> >",
+                "  CanIterate",
+                "TypedTests/1.  # TypeParam = class std::array<int,3>",
+                "  CanIterate",
+                "Arr/TypeParameterizedTests/1.  # TypeParam = class MyStrangeArray",
+                "  CanIterate",
+                "Vec/TypeParameterizedTests/0.  # TypeParam = class std::vector<int,class std::allocator<int> >",
+                "  CanIterate",
+                "InstantiationName/ParameterizedTests.",
+                "  Simple/2",
+            };
+
+            IList<TestCaseDescriptor> descriptors = new ListTestsParser(TestEnvironment.Options.TestNameSeparator)
+                .ParseListTestsOutput(consoleOutput);
+
+            descriptors.Select(d => $"{d.TestClass}|{d.TestGroup}").Should().Equal(
+                "MySuite|MyTest",
+                "Api.Created.Tests|PassingTest",
+                "ParameterizedTests|Simple",
+                "ParameterizedTests|Simple",
+                "ParameterizedTests|Simple",
+                "CustomFunctorNamingTest|CustomTestNames",
+                "TypedTests|CanIterate",
+                "TypedTests|CanIterate",
+                "TypeParameterizedTests|CanIterate",
+                "TypeParameterizedTests|CanIterate",
+                // older versions of Google Test do not always print the parameters
+                "ParameterizedTests|Simple");
         }
 
     }

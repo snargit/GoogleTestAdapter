@@ -11,11 +11,16 @@ namespace GoogleTestAdapter.TestAdapter.Settings
     /// </summary>
     public class VisualStudioConfiguration
     {
+        /// <summary>
+        /// The full name of the solution file, or the opened folder if VS is in Open Folder mode
+        /// </summary>
+        public string SolutionFullName { get; set; }
         public string SolutionDir { get; set; }
         public string PlatformName { get; set; }
         public string ConfigurationName { get; set; }
 
-        // DTE is not used since its interop types are incompatible with the managed DTE implementation of VS 2026
+        // DTE is not used since its interop types are incompatible with the managed DTE implementation of VS 2026;
+        // must be called on the UI thread
         public static VisualStudioConfiguration FromServiceProvider(IServiceProvider serviceProvider, Action<string> logError)
         {
             var configuration = new VisualStudioConfiguration();
@@ -26,6 +31,7 @@ namespace GoogleTestAdapter.TestAdapter.Settings
             try
             {
                 string solutionFullName = GetSolutionFullName(solution);
+                configuration.SolutionFullName = solutionFullName;
                 try
                 {
                     configuration.SolutionDir = SolutionPaths.GetSolutionDir(solutionFullName);
@@ -55,15 +61,6 @@ namespace GoogleTestAdapter.TestAdapter.Settings
             }
 
             return configuration;
-        }
-
-        /// <summary>
-        /// The full name of the solution file, or the opened folder if VS is in Open Folder mode.
-        /// </summary>
-        public static string GetSolutionFullName(IServiceProvider serviceProvider)
-        {
-            var solution = serviceProvider?.GetService(typeof(SVsSolution)) as IVsSolution;
-            return solution == null ? null : GetSolutionFullName(solution);
         }
 
         private static string GetSolutionFullName(IVsSolution solution)

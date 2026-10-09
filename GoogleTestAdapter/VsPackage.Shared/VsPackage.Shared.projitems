@@ -39,6 +39,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Settings\RunSettingsService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Settings\SolutionPaths.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Settings\VisualStudioConfiguration.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Settings\VisualStudioConfigurationTracker.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="$(MSBuildThisFileDirectory)..\Resources\Icons\Icon.ico" />

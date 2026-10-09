@@ -123,24 +123,19 @@ namespace GoogleTestAdapter.TestAdapter.Settings
             settings.GetUnsetValuesFrom(_globalRunSettings.RunSettings);
         }
 
+        // This is called on background threads and must not wait for the UI thread, which might be busy (e.g. loading
+        // the solution) or even be waiting for the caller; the configuration is thus taken as of the last change.
         // protected for testing
         protected virtual VisualStudioConfiguration GetVisualStudioConfiguration(ILogger logger)
         {
-            return ThreadHelper.JoinableTaskFactory.Run(async () =>
-            {
-                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                return VisualStudioConfiguration.FromServiceProvider(ServiceProvider.GlobalProvider, message => logger.Log(MessageLevel.Error, message));
-            });
+            VisualStudioConfigurationTracker.RequestUpdate();
+            return VisualStudioConfigurationTracker.Current;
         }
 
         // protected for testing
         protected virtual string GetSolutionSettingsXmlFile()
         {
-            return ThreadHelper.JoinableTaskFactory.Run(async () =>
-            {
-                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                return SolutionPaths.GetSolutionSettingsFile(VisualStudioConfiguration.GetSolutionFullName(ServiceProvider.GlobalProvider));
-            });
+            return SolutionPaths.GetSolutionSettingsFile(VisualStudioConfigurationTracker.Current?.SolutionFullName);
         }
 
     }

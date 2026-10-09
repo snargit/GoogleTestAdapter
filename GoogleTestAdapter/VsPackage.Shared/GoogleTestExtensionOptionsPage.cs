@@ -55,6 +55,7 @@ namespace GoogleTestAdapter.VsPackage
         private GoogleTestOptionsDialogPage _googleTestOptions;
 
         private DebuggerAttacherServiceHost _debuggerAttacherServiceHost;
+        private VisualStudioConfigurationTracker _visualStudioConfigurationTracker;
 
         protected override async Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
         {
@@ -72,6 +73,8 @@ namespace GoogleTestAdapter.VsPackage
 
         private void DoInitialize()
         {
+            _visualStudioConfigurationTracker = new VisualStudioConfigurationTracker(this,
+                new ActivityLogLogger(this, () => OutputMode.Verbose).LogError);
             InitializeOptions();
             InitializeCommands();
             InitializeDebuggerAttacherService();
@@ -149,6 +152,7 @@ namespace GoogleTestAdapter.VsPackage
                 _testDiscoveryOptions?.Dispose();
                 _testExecutionOptions?.Dispose();
                 _googleTestOptions?.Dispose();
+                _visualStudioConfigurationTracker?.Dispose();
 
                 try
                 {

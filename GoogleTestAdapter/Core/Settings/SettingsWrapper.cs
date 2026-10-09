@@ -614,7 +614,7 @@ namespace GoogleTestAdapter.Settings
 
         public const string OptionParseSymbolInformation = "Parse symbol information";
         public const string OptionParseSymbolInformationDescription =
-            "Parse debug symbol information for test executables. Setting this to false will speed up test discovery, but tests will not have source location information, and traits defined via the macros in GTA_Traits.h will not be available.";
+            "Parse debug symbol information for test executables. Setting this to false will speed up test discovery, but traits defined via the macros in GTA_Traits.h and namespaces of tests will not be available, and tests will only have source locations if they are provided by Google Test (1.8.1 or later).";
         public const bool OptionParseSymbolInformationDefaultValue = true;
 
         public virtual bool ParseSymbolInformation => _currentSettings.ParseSymbolInformation ?? OptionParseSymbolInformationDefaultValue;

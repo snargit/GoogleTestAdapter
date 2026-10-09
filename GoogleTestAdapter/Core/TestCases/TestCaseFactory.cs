@@ -45,33 +45,13 @@ namespace GoogleTestAdapter.TestCases
 
             var resolver = new TestCaseResolver(_executable, _diaResolverFactory, _settings, _logger);
 
-            var suite2TestCases = new Dictionary<string, ISet<TestCase>>();
+            var descriptors = new List<TestCaseDescriptor>();
             var parser = new StreamingListTestsParser(_settings.TestNameSeparator);
-            parser.TestCaseDescriptorCreated += (sender, args) =>
-            {
-                TestCase testCase;
-                if (_settings.ParseSymbolInformation)
-                {
-                    TestCaseLocation testCaseLocation =
-                        resolver.FindTestCaseLocation(
-                            _signatureCreator.GetTestMethodSignatures(args.TestCaseDescriptor).ToList());
-                    testCase = CreateTestCase(args.TestCaseDescriptor, testCaseLocation);
-                }
-                else
-                {
-                    testCase = CreateTestCase(args.TestCaseDescriptor);
-                }
-                testCases.Add(testCase);
+            parser.TestCaseDescriptorCreated += (sender, args) => descriptors.Add(args.TestCaseDescriptor);
 
-                if (!suite2TestCases.TryGetValue(args.TestCaseDescriptor.Suite, out var testCasesOfSuite))
-                {
-                    suite2TestCases.Add(args.TestCaseDescriptor.Suite, testCasesOfSuite = new HashSet<TestCase>());
-                }
-                testCasesOfSuite.Add(testCase);
-            };
-
+            string testListFile = Path.GetTempFileName();
             string workingDir = _settings.GetWorkingDirForDiscovery(_executable);
-            var finalParams = GetDiscoveryParams();
+            var finalParams = GetDiscoveryParams(testListFile);
             var environmentVariables = _settings.GetEnvironmentVariablesForDiscovery(_executable);
             try
             {
@@ -106,6 +86,20 @@ namespace GoogleTestAdapter.TestCases
                     return new List<TestCase>();
                 }
 
+                var suite2TestCases = new Dictionary<string, ISet<TestCase>>();
+                var xmlLocations = new XmlTestListParser(_executable, _logger).ParseTestLocations(testListFile);
+                foreach (var descriptor in descriptors)
+                {
+                    TestCase testCase = CreateTestCase(descriptor, resolver, xmlLocations);
+                    testCases.Add(testCase);
+
+                    if (!suite2TestCases.TryGetValue(descriptor.Suite, out var testCasesOfSuite))
+                    {
+                        suite2TestCases.Add(descriptor.Suite, testCasesOfSuite = new HashSet<TestCase>());
+                    }
+                    testCasesOfSuite.Add(testCase);
+                }
+
                 foreach (var suiteTestCasesPair in suite2TestCases)
                 {
                     foreach (var testCase in suiteTestCasesPair.Value)
@@ -132,10 +126,15 @@ namespace GoogleTestAdapter.TestCases
                 SequentialTestRunner.LogExecutionError(_logger, _executable, workingDir, finalParams, e);
                 return new List<TestCase>();
             }
+            finally
+            {
+                TryDelete(testListFile);
+            }
             return testCases;
         }
 
-        private string GetDiscoveryParams()
+        // Google Test >= 1.8.1 writes the tests including their source locations to the result XML file (upstream #309)
+        private string GetDiscoveryParams(string testListFile)
         {
             string finalParams = GoogleTestConstants.ListTestsOption;
             string userParams = _settings.GetUserParametersForDiscovery(_executable);
@@ -144,7 +143,20 @@ namespace GoogleTestAdapter.TestCases
                 finalParams += $" {userParams}";
             }
 
-            return finalParams;
+            // last, since the last --gtest_output option wins
+            return $"{finalParams} {GoogleTestConstants.GetResultXmlFileOption(testListFile)}";
+        }
+
+        private void TryDelete(string file)
+        {
+            try
+            {
+                File.Delete(file);
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                _logger.DebugWarning($"Could not delete test list file {file}: {e.Message}");
+            }
         }
 
         private void LogTimeoutError(string workingDir, string finalParams, IList<string> outputSoFar)
@@ -194,6 +206,29 @@ namespace GoogleTestAdapter.TestCases
                 descriptor.FullyQualifiedName, _executable, descriptor.DisplayName, "", 0);
             testCase.Traits.AddRange(GetFinalTraits(descriptor.DisplayName, WithLabelTraits(descriptor, new List<Trait>())));
             return testCase;
+        }
+
+        // Locations from debug symbols come with traits and namespace; the location written by Google Test is used
+        // if there are no debug symbols, if symbols are not parsed, or for tests without TestBody symbol (e.g. tests
+        // registered with ::testing::RegisterTest())
+        private TestCase CreateTestCase(TestCaseDescriptor descriptor, TestCaseResolver resolver,
+            IDictionary<string, TestCaseLocation> xmlLocations)
+        {
+            TestCaseLocation location = null;
+            if (_settings.ParseSymbolInformation)
+            {
+                location = resolver.FindTestCaseLocation(_signatureCreator.GetTestMethodSignatures(descriptor).ToList());
+            }
+            if (location == null)
+            {
+                xmlLocations.TryGetValue(descriptor.FullyQualifiedName, out location);
+            }
+
+            if (location == null && !_settings.ParseSymbolInformation)
+            {
+                return CreateTestCase(descriptor);
+            }
+            return CreateTestCase(descriptor, location);
         }
 
         private TestCase CreateTestCase(TestCaseDescriptor descriptor, TestCaseLocation location)

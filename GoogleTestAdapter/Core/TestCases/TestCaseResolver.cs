@@ -106,9 +106,11 @@ namespace GoogleTestAdapter.TestCases
             string pdb = PdbLocator.FindPdbFile(binary, _settings.GetPathExtension(_executable), _logger);
             if (pdb == null)
             {
-                // without source locations, tests can neither be navigated to nor be analyzed by e.g. Copilot
+                // without debug symbols, tests have neither traits nor namespaces, and source locations only if
+                // Google Test provides them; without source locations, tests can neither be navigated to nor be
+                // analyzed by e.g. Copilot
                 if (binary == _executable)
-                    _logger.LogWarning($"No .pdb file found for test executable '{binary}', tests will not have source locations (make sure the executable is built with debug information, e.g. linker option /DEBUG)");
+                    _logger.LogWarning($"No .pdb file found for test executable '{binary}', tests will have neither traits nor namespaces, and source locations only with Google Test 1.8.1 or later (make sure the executable is built with debug information, e.g. linker option /DEBUG)");
                 else
                     _logger.DebugWarning($"No .pdb file found for '{binary}'");
                 return;

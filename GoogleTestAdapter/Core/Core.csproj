@@ -90,6 +90,7 @@
     <Compile Include="TestCases\TestCaseDescriptor.cs" />
     <Compile Include="TestCases\TestCaseFactory.cs" />
     <Compile Include="Helpers\Utils.cs" />
+    <Compile Include="Helpers\GoogleTestXmlFile.cs" />
     <Compile Include="Settings\IGoogleTestAdapterSettings.cs" />
     <Compile Include="Model\TestCase.cs" />
     <Compile Include="Model\TestResult.cs" />
@@ -109,6 +110,7 @@
     <Compile Include="Scheduling\TestDurationSerializer.cs" />
     <Compile Include="TestCases\TestCaseLocation.cs" />
     <Compile Include="TestCases\TestCaseResolver.cs" />
+    <Compile Include="TestCases\XmlTestListParser.cs" />
     <Compile Include="TestResults\ErrorMessageParser.cs" />
     <Compile Include="TestResults\IExitCodeTestsAggregator.cs" />
     <Compile Include="TestResults\IExitCodeTestsReporter.cs" />

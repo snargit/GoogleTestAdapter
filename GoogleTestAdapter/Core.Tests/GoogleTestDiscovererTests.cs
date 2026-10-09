@@ -396,7 +396,7 @@ namespace GoogleTestAdapter
 
         [TestMethod]
         [TestCategory(Integration)]
-        public void GetTestsFromExecutable_DoNotParseSymbolInformation_DiaIsNotInvoked()
+        public void GetTestsFromExecutable_DoNotParseSymbolInformation_DiaIsNotInvokedAndLocationsAreProvidedByGoogleTest()
         {
             var mockFactory = new Mock<IDiaResolverFactory>();
             MockOptions.Setup(o => o.ParseSymbolInformation).Returns(false);
@@ -408,12 +408,35 @@ namespace GoogleTestAdapter
             testCases.Should().HaveCount(TestResources.NrOfTests);
             foreach (TestCase testCase in testCases)
             {
-                testCase.CodeFilePath.Should().Be("");
-                testCase.LineNumber.Should().Be(0);
+                testCase.CodeFilePath.Should().NotBeNullOrEmpty();
+                testCase.LineNumber.Should().BeGreaterThan(0);
+                testCase.Traits.Should().BeEmpty();
+                testCase.Namespace.Should().BeNull();
                 testCase.Source.Should().Be(TestResources.Tests_DebugX86);
                 testCase.DisplayName.Should().NotBeNullOrEmpty();
                 testCase.FullyQualifiedName.Should().NotBeNullOrEmpty();
             }
+
+            TestCase addPasses = testCases.Single(tc => tc.FullyQualifiedName == "TestMath.AddPasses");
+            addPasses.CodeFilePath.Should().BeEquivalentTo(Path.GetFullPath(Path.Combine(TestResources.SampleTestsSolutionDir, @"Tests\BasicTests.cpp")));
+            addPasses.LineNumber.Should().Be(59);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void GetTestsFromExecutable_TestsRegisteredAtRuntime_LocationsAreProvidedByGoogleTest()
+        {
+            IList<TestCase> testCases = new GoogleTestDiscoverer(TestEnvironment.Logger, TestEnvironment.Options)
+                .GetTestsFromExecutable(TestResources.Tests_DebugX86);
+
+            // these tests have no TestBody symbol, their location is the one passed to MakeAndRegisterTestInfo()
+            foreach (string name in new[] { "Api.Created.Tests.PassingTest", "Api_Created_Tests.FailingTest" })
+            {
+                TestCase testCase = testCases.Single(tc => tc.FullyQualifiedName == name);
+                testCase.CodeFilePath.Should().BeEquivalentTo(Path.GetFullPath(Path.Combine(TestResources.SampleTestsSolutionDir, @"Tests\ApiCreatedTests.cpp")));
+                testCase.LineNumber.Should().Be(57);
+            }
+            MockLogger.Verify(l => l.LogWarning(It.Is<string>(s => s.Contains("Could not find source location"))), Times.Never);
         }
 
         [TestMethod]

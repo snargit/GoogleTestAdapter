@@ -1,6 +1,7 @@
 ﻿// This file has been modified by Microsoft on 7/2017.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -22,6 +23,12 @@ namespace GoogleTestAdapter.Settings
         public EnvironmentVariablesParser EnvironmentVariablesParser { private get; set; }
         public TestPropertySettingsContainer TestPropertySettingsContainer { private get; set; }
         public CTestTestPropertySettingsProvider CTestTestPropertySettingsProvider { private get; set; }
+
+        // the test properties are needed for every test, but determining them involves searching the file system for
+        // the executable's CMake build tree; settings only live for one test discovery or execution, so changes of the
+        // build tree are still noticed by the next discovery or execution
+        private readonly ConcurrentDictionary<string, TestPropertySettingsContainer> _cTestTestPropertySettingsContainers =
+            new ConcurrentDictionary<string, TestPropertySettingsContainer>(StringComparer.OrdinalIgnoreCase);
 
         private HelperFilesCache _cache;
         public HelperFilesCache HelperFilesCache
@@ -430,8 +437,13 @@ namespace GoogleTestAdapter.Settings
 
         // CTest knows all test properties, while Visual Studio only provides working directory and environment
         private TestPropertySettingsContainer GetTestPropertySettingsContainer(string executable)
-            => (UseCTestTestProperties ? CTestTestPropertySettingsProvider?.GetContainer(executable) : null)
+            => (UseCTestTestProperties ? GetCTestTestPropertySettingsContainer(executable) : null)
                ?? TestPropertySettingsContainer;
+
+        private TestPropertySettingsContainer GetCTestTestPropertySettingsContainer(string executable)
+            => CTestTestPropertySettingsProvider == null
+                ? null
+                : _cTestTestPropertySettingsContainers.GetOrAdd(executable, CTestTestPropertySettingsProvider.GetContainer);
 
 
         public const string OptionUseCTestTestProperties = "Use CTest test properties";

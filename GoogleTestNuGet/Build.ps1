@@ -260,6 +260,8 @@ function Build-NuGet {
     Invoke-Executable msbuild $PropertiesUITTArgs
 
     Copy-Item -Recurse -Path "..\ThirdParty\googletest\googletest\include" -Destination "$Dir\build\native\include"
+    # GTA's trait macros for the packaged version of Google Test, included as "GTA_Traits.h" (upstream #316)
+    Copy-Item -Path "..\GoogleTestAdapter\Core\Resources\GTA_Traits_1.18.0.h" -Destination "$Dir\build\native\include\GTA_Traits.h"
 
     $BuildToDestinationPath = @()
     $BuildToDestinationPath += ,@($BuildDir32, "$Dir\$PathToBinaries\x86")

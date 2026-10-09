@@ -76,7 +76,8 @@ as they are. If a macro of the target version delegates to another internal macr
 macro which actually defines the test class.
 
 Name the file `GTA_Traits_<version>.h` (e.g. `GTA_Traits_1.18.0.h`), add a `Content` item to `Core/Core.csproj`, and
-update the table above and the README's trait macros section.
+update the table above and the README's trait macros section. If the samples are updated to a new version of Google Test, also update the header which
+`GoogleTestNuGet/Build.ps1` puts into the Google Test NuGet packages as `GTA_Traits.h`.
 
 ## Verifying a header
 

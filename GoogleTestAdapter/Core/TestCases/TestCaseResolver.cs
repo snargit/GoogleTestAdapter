@@ -27,6 +27,14 @@ namespace GoogleTestAdapter.TestCases
         private readonly List<SourceFileLocation> _allTestMethodSymbols = new List<SourceFileLocation>();
         private readonly List<SourceFileLocation> _allTraitSymbols = new List<SourceFileLocation>();
 
+        // Matching each test against all symbols is quadratic in the number of tests, which makes discovery of
+        // executables with many tests slow. Test method symbols are thus indexed by their test class name without
+        // template arguments (see GetClassNameKey()), trait symbols by the test class they belong to. Values are
+        // indices into the lists above, which keeps the order in which symbols are found.
+        private readonly Dictionary<string, List<int>> _testMethodSymbolsByClassName = new Dictionary<string, List<int>>(StringComparer.Ordinal);
+        private readonly List<int> _unindexedTestMethodSymbols = new List<int>();
+        private readonly Dictionary<string, List<SourceFileLocation>> _traitSymbolsByTestClass = new Dictionary<string, List<SourceFileLocation>>(StringComparer.Ordinal);
+
         private bool _loadedSymbolsFromAdditionalPdbs;
         private bool _loadedSymbolsFromImports;
 
@@ -125,8 +133,8 @@ namespace GoogleTestAdapter.TestCases
             {
                 try
                 {
-                    _allTestMethodSymbols.AddRange(diaResolver.GetFunctions("*" + GoogleTestConstants.TestBodySignature));
-                    _allTraitSymbols.AddRange(diaResolver.GetFunctions("*" + TraitAppendix));
+                    AddTestMethodSymbols(diaResolver.GetFunctions("*" + GoogleTestConstants.TestBodySignature));
+                    AddTraitSymbols(diaResolver.GetFunctions("*" + TraitAppendix));
                     _logger.DebugInfo($"Found {_allTestMethodSymbols.Count} test method symbols and {_allTraitSymbols.Count} trait symbols in binary {binary}, pdb {pdb}");
 
                     if (resolveMainMethod)
@@ -164,17 +172,116 @@ namespace GoogleTestAdapter.TestCases
             return location != null ? ToTestCaseLocation(location) : null;
         }
 
+        private void AddTestMethodSymbols(IEnumerable<SourceFileLocation> symbols)
+        {
+            foreach (SourceFileLocation symbol in symbols)
+            {
+                int index = _allTestMethodSymbols.Count;
+                _allTestMethodSymbols.Add(symbol);
+
+                string key = GetClassNameKey(symbol.Symbol, symbol.Symbol.Length - GoogleTestConstants.TestBodySignature.Length);
+                if (key == null)
+                {
+                    _unindexedTestMethodSymbols.Add(index);
+                }
+                else
+                {
+                    if (!_testMethodSymbolsByClassName.TryGetValue(key, out var indices))
+                        _testMethodSymbolsByClassName.Add(key, indices = new List<int>());
+                    indices.Add(index);
+                }
+            }
+        }
+
+        private void AddTraitSymbols(IEnumerable<SourceFileLocation> symbols)
+        {
+            foreach (SourceFileLocation symbol in symbols)
+            {
+                _allTraitSymbols.Add(symbol);
+                if (symbol.TestClassSignature == null)
+                    continue;
+
+                if (!_traitSymbolsByTestClass.TryGetValue(symbol.TestClassSignature, out var traitSymbols))
+                    _traitSymbolsByTestClass.Add(symbol.TestClassSignature, traitSymbols = new List<SourceFileLocation>());
+                traitSymbols.Add(symbol);
+            }
+        }
+
+        /// <summary>
+        /// The name of the class containing the method ending at <paramref name="endOfClass"/>, without namespaces and
+        /// template arguments, e.g. "Suite_Test_Test" for "ns::Suite_Test_Test::TestBody" and
+        /// "Suite_Test_Test&lt;int&gt;::TestBody", and "Test" for "gtest_suite_Suite_::Test&lt;int&gt;::TestBody";
+        /// null if the symbol can not be parsed
+        /// </summary>
+        public static string GetClassNameKey(string symbol, int endOfClass)
+        {
+            if (endOfClass <= 0 || endOfClass > symbol.Length)
+                return null;
+
+            int end = endOfClass;
+            if (symbol[end - 1] == '>')
+            {
+                int depth = 0;
+                int i = end - 1;
+                for (; i >= 0; i--)
+                {
+                    if (symbol[i] == '>')
+                        depth++;
+                    else if (symbol[i] == '<' && --depth == 0)
+                        break;
+                }
+                if (i <= 0)
+                    return null;
+                end = i;
+            }
+
+            int start = symbol.LastIndexOf("::", end - 1, end, StringComparison.Ordinal);
+            start = start < 0 ? 0 : start + 2;
+            return end > start ? symbol.Substring(start, end - start) : null;
+        }
+
+        // the key of the symbols matching the signature, see GetClassNameKey(string, int)
+        private static string GetClassNameKey(MethodSignature methodSignature)
+        {
+            string signature = methodSignature.Signature;
+            if (!methodSignature.IsRegex)
+                return GetClassNameKey(signature, signature.Length - GoogleTestConstants.TestBodySignature.Length);
+
+            // the regex signatures of typed tests contain the type parameter as regex "<.+>"
+            int endOfClass = signature.IndexOf('<');
+            if (endOfClass <= 0)
+                return null;
+            int start = signature.LastIndexOf("::", endOfClass - 1, endOfClass, StringComparison.Ordinal);
+            start = start < 0 ? 0 : start + 2;
+            return signature.Substring(start, endOfClass - start);
+        }
+
+        // symbols which might match one of the signatures, in the order they have been found
+        private IEnumerable<SourceFileLocation> GetCandidateSymbols(List<MethodSignature> testMethodSignatures)
+        {
+            var indices = new SortedSet<int>(_unindexedTestMethodSymbols);
+            foreach (MethodSignature methodSignature in testMethodSignatures)
+            {
+                string key = GetClassNameKey(methodSignature);
+                if (key == null)
+                    return _allTestMethodSymbols;
+                if (_testMethodSymbolsByClassName.TryGetValue(key, out var symbolIndices))
+                    indices.UnionWith(symbolIndices);
+            }
+            return indices.Select(i => _allTestMethodSymbols[i]);
+        }
+
         private TestCaseLocation DoFindTestCaseLocation(List<MethodSignature> testMethodSignatures)
         {
-            foreach (SourceFileLocation sourceFileLocation in _allTestMethodSymbols)
+            foreach (SourceFileLocation sourceFileLocation in GetCandidateSymbols(testMethodSignatures))
             {
                 foreach (MethodSignature methodSignature in testMethodSignatures)
                 {
-                    Match match = GetMatch(sourceFileLocation, methodSignature);
-                    if (match != null)
+                    string namespaces = GetMatch(sourceFileLocation, methodSignature);
+                    if (namespaces != null)
                     {
                         TestCaseLocation testCaseLocation = ToTestCaseLocation(sourceFileLocation);
-                        testCaseLocation.Namespace = GetNamespace(match);
+                        testCaseLocation.Namespace = GetNamespace(namespaces);
                         return testCaseLocation;
                     }
                 }
@@ -182,36 +289,52 @@ namespace GoogleTestAdapter.TestCases
             return null;
         }
 
-        private Match GetMatch(SourceFileLocation sourceFileLocation, MethodSignature methodSignature)
-        {
-            string signature = methodSignature.Signature;
-
-            bool generalCheck = methodSignature.IsRegex
-                ? Regex.IsMatch(sourceFileLocation.Symbol, signature)
-                : sourceFileLocation.Symbol.Contains(signature);
-            if (!generalCheck)
-                return null;
-
-            Match match = Regex.Match(sourceFileLocation.Symbol, GetPreciseRegex(signature));
-            return match.Success ? match : null;
-        }
-
         private const string NamespaceGroup = "namespace";
         private const string AnonymousNamespaceSymbol = "`anonymous namespace'";
         public const string AnonymousNamespace = "(anonymous namespace)";
+        private const string NamespacesPattern = @"(?:(?:(?:\w+)|(?:" + AnonymousNamespaceSymbol + "))::)*";
 
-        private string GetPreciseRegex(string signature)
+        private static readonly Regex NamespacesRegex = new Regex($"^{NamespacesPattern}$", RegexOptions.Compiled);
+
+        /// <returns>The namespace part of the symbol (e.g. "outer::`anonymous namespace'::") if the symbol is the
+        /// signature preceded by namespaces, null otherwise</returns>
+        private static string GetMatch(SourceFileLocation sourceFileLocation, MethodSignature methodSignature)
         {
-            return $@"^(?<{NamespaceGroup}>(?:(?:(?:\w+)|(?:{AnonymousNamespaceSymbol}))::)*){signature}";
+            string symbol = sourceFileLocation.Symbol;
+            string signature = methodSignature.Signature;
+
+            if (methodSignature.IsRegex)
+            {
+                if (!Regex.IsMatch(symbol, signature))
+                    return null;
+
+                Match match = Regex.Match(symbol, $"^(?<{NamespaceGroup}>{NamespacesPattern}){signature}");
+                return match.Success ? match.Groups[NamespaceGroup].Value : null;
+            }
+
+            // same as the regex above, but without creating a regex per signature (which is expensive for executables
+            // with many tests); the regex's greedy namespace group matches the last possible occurrence
+            var occurrences = new List<int>();
+            for (int index = symbol.IndexOf(signature, StringComparison.Ordinal); index >= 0;
+                 index = symbol.IndexOf(signature, index + 1, StringComparison.Ordinal))
+            {
+                occurrences.Add(index);
+            }
+            for (int i = occurrences.Count - 1; i >= 0; i--)
+            {
+                string namespaces = symbol.Substring(0, occurrences[i]);
+                if (NamespacesRegex.IsMatch(namespaces))
+                    return namespaces;
+            }
+            return null;
         }
 
         // MSVC's internal name of an anonymous namespace, used by DIA e.g. for an anonymous namespace containing another one
         private static readonly Regex InternalAnonymousNamespaceRegex = new Regex(@"^A0x[0-9a-fA-F]{8}$");
 
         // e.g. "outer::`anonymous namespace'::" => "outer::(anonymous namespace)"
-        private static string GetNamespace(Match match)
+        private static string GetNamespace(string ns)
         {
-            string ns = match.Groups[NamespaceGroup].Value;
             if (ns.Length == 0)
                 return ns;
 
@@ -233,17 +356,17 @@ namespace GoogleTestAdapter.TestCases
         private List<Trait> GetTraits(SourceFileLocation nativeSymbol)
         {
             var traits = new List<Trait>();
+            if (nativeSymbol.TestClassSignature == null
+                || !_traitSymbolsByTestClass.TryGetValue(nativeSymbol.TestClassSignature, out var traitSymbols))
+                return traits;
+
             // ReSharper disable once LoopCanBeConvertedToQuery
-            foreach (SourceFileLocation nativeTraitSymbol in _allTraitSymbols)
+            foreach (SourceFileLocation nativeTraitSymbol in traitSymbols)
             {
-                // TODO bring down to logarithmic complexity (binary search for finding a symbol, collect all matching symbols after and before)
-                if (nativeSymbol.Symbol.StartsWith(nativeTraitSymbol.TestClassSignature))
-                {
-                    int lengthOfSerializedTrait = nativeTraitSymbol.Symbol.Length - nativeTraitSymbol.IndexOfSerializedTrait - TraitAppendix.Length;
-                    string serializedTrait = nativeTraitSymbol.Symbol.Substring(nativeTraitSymbol.IndexOfSerializedTrait, lengthOfSerializedTrait);
-                    string[] data = serializedTrait.Split(new[] { TraitSeparator }, StringSplitOptions.None);
-                    traits.Add(new Trait(data[0], data[1]));
-                }
+                int lengthOfSerializedTrait = nativeTraitSymbol.Symbol.Length - nativeTraitSymbol.IndexOfSerializedTrait - TraitAppendix.Length;
+                string serializedTrait = nativeTraitSymbol.Symbol.Substring(nativeTraitSymbol.IndexOfSerializedTrait, lengthOfSerializedTrait);
+                string[] data = serializedTrait.Split(new[] { TraitSeparator }, StringSplitOptions.None);
+                traits.Add(new Trait(data[0], data[1]));
             }
 
             return traits;

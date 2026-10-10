@@ -37,6 +37,13 @@
       <xsd:element name="PathExtension"                minOccurs="0" type="xsd:string"  />
       <xsd:element name="EnvironmentVariables"         minOccurs="0" type="xsd:string"  />
       <xsd:element name="UseCTestTestProperties"       minOccurs="0" type="xsd:boolean" />
+      <xsd:element name="TestTimeoutInSeconds" minOccurs="0">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:int">
+            <xsd:minInclusive value="0" />
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:element>
       <xsd:element name="CatchExceptions"              minOccurs="0" type="xsd:boolean" />
       <xsd:element name="BreakOnFailure"               minOccurs="0" type="xsd:boolean" />
       <xsd:element name="RunDisabledTests"             minOccurs="0" type="xsd:boolean" />

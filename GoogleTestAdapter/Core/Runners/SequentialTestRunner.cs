@@ -352,7 +352,8 @@ namespace GoogleTestAdapter.Runners
 
         /// <summary>
         /// Kills the test executable if a test runs longer than its timeout as configured in CMake (test property
-        /// TIMEOUT). Returns null if none of the tests has a timeout.
+        /// TIMEOUT) or by option <see cref="SettingsWrapper.OptionTestTimeoutInSeconds"/>. Returns null if none of the
+        /// tests has a timeout.
         /// </summary>
         private IDisposable StartTimeoutWatchdog(string executable, IEnumerable<TestCase> testCases, bool isBeingDebugged,
             bool isTestOutputAvailable, StreamingStandardOutputTestResultParser streamingParser)
@@ -361,10 +362,14 @@ namespace GoogleTestAdapter.Runners
             if (isBeingDebugged || !isTestOutputAvailable)
                 return null;
 
+            TimeSpan? defaultTimeout = _settings.TestTimeoutInSeconds > 0
+                ? TimeSpan.FromSeconds(_settings.TestTimeoutInSeconds)
+                : (TimeSpan?)null;
             var timeouts = new Dictionary<TestCase, TimeSpan>();
             foreach (TestCase testCase in testCases)
             {
-                TimeSpan? timeout = _settings.GetTestPropertySettings(executable, testCase.FullyQualifiedName)?.Timeout;
+                TimeSpan? timeout = _settings.GetTestPropertySettings(executable, testCase.FullyQualifiedName)?.Timeout
+                                    ?? defaultTimeout;
                 if (timeout.HasValue)
                     timeouts[testCase] = timeout.Value;
             }

@@ -454,6 +454,22 @@ namespace GoogleTestAdapter.Settings
         public const bool OptionUseCTestTestPropertiesDefaultValue = true;
 
         public virtual bool UseCTestTestProperties => _currentSettings.UseCTestTestProperties ?? OptionUseCTestTestPropertiesDefaultValue;
+
+
+        public const string OptionTestTimeoutInSeconds = "Test timeout in s";
+        public const string OptionTestTimeoutInSecondsDescription =
+            "Number of seconds after which a running test is assumed to hang: the test executable is killed, the test is reported as failed, and the remaining tests are run. " +
+            "The TIMEOUT of tests built by CMake (see option '" + OptionUseCTestTestProperties + "') takes precedence. Not applied while debugging. 0: no timeout";
+        public const int OptionTestTimeoutInSecondsDefaultValue = 0;
+
+        public virtual int TestTimeoutInSeconds
+        {
+            get
+            {
+                int timeout = _currentSettings.TestTimeoutInSeconds ?? OptionTestTimeoutInSecondsDefaultValue;
+                return timeout < 0 ? OptionTestTimeoutInSecondsDefaultValue : timeout;
+            }
+        }
         
 
         public const string OptionAdditionalTestExecutionParams = "Additional test execution parameters";

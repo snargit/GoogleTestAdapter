@@ -43,6 +43,9 @@ namespace GoogleTestAdapter.Settings
         public virtual bool? UseCTestTestProperties { get; set; }
         public bool ShouldSerializeUseCTestTestProperties() { return UseCTestTestProperties != null; }
 
+        public virtual int? TestTimeoutInSeconds { get; set; }
+        public bool ShouldSerializeTestTimeoutInSeconds() { return TestTimeoutInSeconds != null; }
+
         public virtual bool? CatchExceptions { get; set; }
         public bool ShouldSerializeCatchExceptions() { return CatchExceptions != null; }
 

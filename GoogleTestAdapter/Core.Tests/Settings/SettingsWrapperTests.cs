@@ -513,6 +513,20 @@ namespace GoogleTestAdapter.Settings
 
         [TestMethod]
         [TestCategory(Unit)]
+        public void TestTimeoutInSeconds__ReturnsValueOrDefault()
+        {
+            MockXmlOptions.Setup(o => o.TestTimeoutInSeconds).Returns((int?)null);
+            TheOptions.TestTimeoutInSeconds.Should().Be(SettingsWrapper.OptionTestTimeoutInSecondsDefaultValue);
+
+            MockXmlOptions.Setup(o => o.TestTimeoutInSeconds).Returns(42);
+            TheOptions.TestTimeoutInSeconds.Should().Be(42);
+
+            MockXmlOptions.Setup(o => o.TestTimeoutInSeconds).Returns(-1);
+            TheOptions.TestTimeoutInSeconds.Should().Be(SettingsWrapper.OptionTestTimeoutInSecondsDefaultValue);
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
         public void GetTestPropertySettings_UseCTestTestProperties_CTestPropertiesWinOverThoseOfVisualStudio()
         {
             var mockProvider = SetupCTestTestPropertySettingsProvider(true);

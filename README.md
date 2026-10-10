@@ -24,6 +24,7 @@ Changes compared to the original project:
   * The CTest test properties `LABELS` (assigned as `Label` traits), `DISABLED` (tests reported as skipped), `TIMEOUT` (tests killed after their timeout), `WORKING_DIRECTORY`, and `ENVIRONMENT` are honored, both within Visual Studio and with `VSTest.Console.exe`; this can be switched off with option *Use CTest test properties*
   * The [solution settings file](#solution_settings) and `$(SolutionDir)` are supported if a folder has been opened instead of a solution (Open Folder mode)
   * Test executables linking Google Test or Google Mock as DLLs (`gtest`, `gtest_main`, `gmock`, `gmock_main`, optionally with debug postfix `d`) are discovered
+  * Option *Test timeout in s* (`<TestTimeoutInSeconds>`, default 0, i.e. no timeout) kills a test executable if a test runs longer than the timeout; the test fails with a timeout message, and the remaining tests are run (as for CTest's `TIMEOUT`, which takes precedence)
 * **Bug fixes**
   * Test executables with paths not representable in the ANSI code page (e.g. containing Chinese characters on a Western system) are discovered (based on upstream PR [#288](https://github.com/csoltenborn/GoogleTestAdapter/pull/288))
   * Test suites with dots in their names no longer cause tests of other suites to be run (upstream [#330](https://github.com/csoltenborn/GoogleTestAdapter/pull/330))
@@ -67,7 +68,7 @@ Google Test Adapter (GTA) is a Visual Studio extension providing test discovery 
 * [TFS support](#vstest_console) by means of [`VSTest.Console.exe`](https://learn.microsoft.com/en-us/visualstudio/test/vstest-console-options)
 * [Support](#test_case_filters) for [test case filters](https://github.com/microsoft/vstest/blob/main/docs/filter.md)
 * Failed assertions and [SCOPED_TRACE](https://github.com/google/googletest/blob/master/googletest/docs/advanced.md#adding-traces-to-assertions)s are linked to their source locations
-* Identification of crashed tests
+* Identification of crashed tests, and of hanging tests by means of option *Test timeout in s*
 * Test output can be piped to test console
 * Exit code of test executables can be [reflected as an additional test](#evaluating_exit_code)
 * Execution of [parameterized batch files](#test_setup_and_teardown) for test setup/teardown
@@ -191,7 +192,7 @@ GTA discovers and runs the tests of executables built by CMake just like those o
 
 * `LABELS`: Each label is assigned to the test as a trait *(Label,&lt;label&gt;)*, allowing to group tests by label in the Test Explorer and to select tests by label via test case filters (e.g. `/TestCaseFilter:"Label=fast"`).
 * `DISABLED`: Disabled tests are not run, but reported as skipped (as CTest does).
-* `TIMEOUT`: If a test runs longer than its timeout, the test executable is killed and the test fails with a timeout message; the remaining tests of the executable are run afterwards. Timeouts are not applied while debugging tests.
+* `TIMEOUT`: If a test runs longer than its timeout, the test executable is killed and the test fails with a timeout message; the remaining tests of the executable are run afterwards. Timeouts are not applied while debugging tests. A test's `TIMEOUT` takes precedence over option *Test timeout in s*, which applies the same to all tests.
 * `WORKING_DIRECTORY` and `ENVIRONMENT`: The tests are run with the working directory and environment variables CTest would use (by default, CTest uses the build folder as working directory). A working directory configured for GTA wins over CMake's if it differs from the default; environment variables configured for GTA override CMake's.
 
 When running tests of a CMake project opened as a folder, Visual Studio additionally passes the `WORKING_DIRECTORY` and `ENVIRONMENT` test properties to the test adapter; these are used if CTest's test properties are not available.

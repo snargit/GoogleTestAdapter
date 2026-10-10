@@ -255,6 +255,7 @@ namespace GoogleTestAdapter.VsPackage
                 PathExtension = _testExecutionOptions.PathExtension,
                 EnvironmentVariables = _testExecutionOptions.EnvironmentVariables,
                 UseCTestTestProperties = _testExecutionOptions.UseCTestTestProperties,
+                TestTimeoutInSeconds = _testExecutionOptions.TestTimeoutInSeconds,
                 AdditionalTestExecutionParam = _testExecutionOptions.AdditionalTestExecutionParams,
                 BatchForTestSetup = _testExecutionOptions.BatchForTestSetup,
                 BatchForTestTeardown = _testExecutionOptions.BatchForTestTeardown,

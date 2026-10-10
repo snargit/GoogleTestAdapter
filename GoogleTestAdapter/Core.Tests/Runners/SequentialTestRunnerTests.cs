@@ -276,6 +276,54 @@ namespace GoogleTestAdapter.Runners
                     && !result.ErrorMessage.Contains("TIMED OUT") && !result.ErrorMessage.Contains(StreamingStandardOutputTestResultParser.CrashText)))), Times.Once);
         }
 
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void RunTests_TestTimeout_TestsAreKilledAndReportedAsTimedOut()
+        {
+            List<TestCase> testCases = TestDataCreator.GetTestCases("LongRunningTests.Test1", "LongRunningTests.Test2");
+            var settings = CreateSettings(null, null, testTimeoutInSeconds: 1);
+            var runner = new SequentialTestRunner("", 0, "", MockFrameworkReporter.Object, TestEnvironment.Logger, settings, new SchedulingAnalyzer(TestEnvironment.Logger));
+
+            var stopwatch = Stopwatch.StartNew();
+            runner.RunTests(testCases, false, ProcessExecutorFactory);
+            stopwatch.Stop();
+
+            // both tests would take 2s
+            stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3.5));
+            MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
+            foreach (TestCase testCase in testCases)
+            {
+                MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                    It.Is<IEnumerable<TestResult>>(tr => tr.Any(result => result.TestCase == testCase && result.Outcome == TestOutcome.Failed
+                        && result.ErrorMessage.StartsWith(StreamingStandardOutputTestResultParser.CreateTimeoutText(TimeSpan.FromSeconds(1)))))), Times.Once);
+            }
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void RunTests_TestTimeoutAndCMakeTimeout_CMakeTimeoutTakesPrecedence()
+        {
+            TestCase timedOutTestCase = TestDataCreator.GetTestCases("LongRunningTests.Test1").First();
+            TestCase otherTestCase = TestDataCreator.GetTestCases("LongRunningTests.Test2").First();
+            var settings = CreateSettings(null, null, testTimeoutInSeconds: 1);
+            var otherTest = CreateTestProperties(otherTestCase, null);
+            otherTest.Timeout = TimeSpan.FromSeconds(10);
+            settings.TestPropertySettingsContainer = CreateTestPropertySettingsContainer(
+                CreateTestProperties(timedOutTestCase, null), otherTest);
+            var runner = new SequentialTestRunner("", 0, "", MockFrameworkReporter.Object, TestEnvironment.Logger, settings, new SchedulingAnalyzer(TestEnvironment.Logger));
+
+            runner.RunTests(new[] { timedOutTestCase, otherTestCase }, false, ProcessExecutorFactory);
+
+            MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
+            MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                It.Is<IEnumerable<TestResult>>(tr => tr.Any(result => result.TestCase == timedOutTestCase && result.Outcome == TestOutcome.Failed
+                    && result.ErrorMessage.StartsWith(StreamingStandardOutputTestResultParser.CreateTimeoutText(TimeSpan.FromSeconds(1)))))), Times.Once);
+            // Test2 takes 2s, which is within its CMake timeout
+            MockFrameworkReporter.Verify(r => r.ReportTestResults(
+                It.Is<IEnumerable<TestResult>>(tr => tr.Any(result => result.TestCase == otherTestCase && result.Outcome == TestOutcome.Failed
+                    && !result.ErrorMessage.Contains("TIMED OUT") && !result.ErrorMessage.Contains(StreamingStandardOutputTestResultParser.CrashText)))), Times.Once);
+        }
+
         private static TestPropertySettingsContainer.TestProperties CreateTestProperties(TestCase testCase,
             string workingDirectory, string variableName = null, string variableValue = null)
         {
@@ -321,11 +369,12 @@ namespace GoogleTestAdapter.Runners
             stopwatch.ElapsedMilliseconds.Should().BeLessThan(upper); // 2nd test should not be executed 
         }
 
-        private SettingsWrapper CreateSettings(string solutionWorkingDir, string projectWorkingDir, string environmentVariable = null)
+        private SettingsWrapper CreateSettings(string solutionWorkingDir, string projectWorkingDir, string environmentVariable = null,
+            int? testTimeoutInSeconds = null)
         {
             var mockContainer = new Mock<IGoogleTestAdapterSettingsContainer>();
 
-            var solutionSettings = new RunSettings {WorkingDir = solutionWorkingDir};
+            var solutionSettings = new RunSettings {WorkingDir = solutionWorkingDir, TestTimeoutInSeconds = testTimeoutInSeconds};
             mockContainer
                 .Setup(c => c.SolutionSettings)
                 .Returns(solutionSettings);

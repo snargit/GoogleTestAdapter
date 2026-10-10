@@ -120,6 +120,21 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         private bool _useCTestTestProperties = SettingsWrapper.OptionUseCTestTestPropertiesDefaultValue;
 
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
+        [DisplayName(SettingsWrapper.OptionTestTimeoutInSeconds)]
+        [Description(SettingsWrapper.OptionTestTimeoutInSecondsDescription)]
+        public int TestTimeoutInSeconds
+        {
+            get => _testTimeoutInSeconds;
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException(nameof(TestTimeoutInSeconds), value, "Expected a number greater than or equal to 0.");
+                SetAndNotify(ref _testTimeoutInSeconds, value);
+            }
+        }
+        private int _testTimeoutInSeconds = SettingsWrapper.OptionTestTimeoutInSecondsDefaultValue;
+
+        [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionAdditionalTestExecutionParams)]
         [Description(SettingsWrapper.OptionAdditionalTestExecutionParamsDescription)]
         public string AdditionalTestExecutionParams

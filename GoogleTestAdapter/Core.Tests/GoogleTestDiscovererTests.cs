@@ -424,6 +424,20 @@ namespace GoogleTestAdapter
 
         [TestMethod]
         [TestCategory(Integration)]
+        public void GetTestsFromExecutable_SourcePathMapping_LocationsAreMapped()
+        {
+            MockOptions.Setup(o => o.SourcePathMapping).Returns(@"$(SolutionDir)=>X:\mapped");
+
+            IList<TestCase> testCases = new GoogleTestDiscoverer(TestEnvironment.Logger, TestEnvironment.Options)
+                .GetTestsFromExecutable(TestResources.Tests_DebugX86);
+
+            TestCase addPasses = testCases.Single(tc => tc.FullyQualifiedName == "TestMath.AddPasses");
+            addPasses.CodeFilePath.Should().BeEquivalentTo(@"X:\mapped\Tests\BasicTests.cpp");
+            MockLogger.Verify(l => l.LogWarning(It.Is<string>(s => s.Contains(SettingsWrapper.OptionSourcePathMapping))), Times.Never);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
         public void GetTestsFromExecutable_TypedAndParameterizedTests_InstancesShareTestClassAndGroup()
         {
             IList<TestCase> testCases = new GoogleTestDiscoverer(TestEnvironment.Logger, TestEnvironment.Options)

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml;
+using GoogleTestAdapter.Helpers;
 
 namespace GoogleTestAdapter.TestResults
 {
@@ -41,20 +42,26 @@ namespace GoogleTestAdapter.TestResults
         public string ErrorStackTrace { get; private set; }
 
         private readonly string _testName;
+        private readonly SourcePathMapper _sourcePathMapper;
         private IList<string> ErrorMessages { get; }
 
         /// <param name="testName">If provided, stack trace entries of failures are labeled with the test's name
         /// (as for .NET tests, which helps tools like Copilot to relate them to the test) rather than with file and line</param>
-        public ErrorMessageParser(string consoleOutput, string testName = null)
+        /// <param name="sourcePathMapper">Maps the source paths of the stack trace entries, see
+        /// <see cref="Settings.SettingsWrapper.OptionSourcePathMapping"/></param>
+        public ErrorMessageParser(string consoleOutput, string testName = null, SourcePathMapper sourcePathMapper = null)
         {
             _testName = testName;
+            _sourcePathMapper = sourcePathMapper ?? SourcePathMapper.Identity;
             ErrorMessages = SplitConsoleOutput(consoleOutput);
         }
 
-        /// <param name="testName">See <see cref="ErrorMessageParser(string, string)"/></param>
-        public ErrorMessageParser(XmlNodeList failureNodes, string testName = null)
+        /// <param name="testName">See <see cref="ErrorMessageParser(string, string, SourcePathMapper)"/></param>
+        /// <param name="sourcePathMapper">See <see cref="ErrorMessageParser(string, string, SourcePathMapper)"/></param>
+        public ErrorMessageParser(XmlNodeList failureNodes, string testName = null, SourcePathMapper sourcePathMapper = null)
         {
             _testName = testName;
+            _sourcePathMapper = sourcePathMapper ?? SourcePathMapper.Identity;
             ErrorMessages = (from XmlNode failureNode in failureNodes select failureNode.InnerText).ToList();
         }
 
@@ -152,7 +159,7 @@ namespace GoogleTestAdapter.TestResults
 
             string label = _testName ?? $"{fileName}:{lineNumber}";
 
-            stackTrace = fullFileName == "" ? "" : CreateStackTraceEntry($"{msgReference}{label}", fullFileName, lineNumber);
+            stackTrace = fullFileName == "" ? "" : CreateStackTraceEntry($"{msgReference}{label}", _sourcePathMapper.Map(fullFileName), lineNumber);
             errorMessage = errorMessage.Replace(match.Value, "").Trim();
 
             match = ScopedTraceStartRegex.Match(errorMessage);
@@ -167,7 +174,7 @@ namespace GoogleTestAdapter.TestResults
                     lineNumber = traceMatch.Groups[2].Value;
                     string traceMessage = traceMatch.Groups[3].Value.Trim();
 
-                    stackTrace += CreateStackTraceEntry($"-->{traceMessage}", fullFileName, lineNumber);
+                    stackTrace += CreateStackTraceEntry($"-->{traceMessage}", _sourcePathMapper.Map(fullFileName), lineNumber);
                 }
             }
         }

@@ -108,6 +108,7 @@
     <Compile Include="TestCases\TestCaseFactoryTests.cs" />
     <Compile Include="TestCases\ListTestsParserTests.cs" />
     <Compile Include="TestCases\XmlTestListParserTests.cs" />
+    <Compile Include="Helpers\SourcePathMapperTests.cs" />
     <Compile Include="TestResults\ExitCodeTestsReporterTests.cs" />
     <Compile Include="TestResults\StreamingStandardOutputTestResultParserTests.cs" />
     <Compile Include="TestResults\ErrorMessageParserTests.cs" />

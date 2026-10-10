@@ -39,6 +39,8 @@ namespace GoogleTestAdapter.Settings
         string EnvironmentVariables { get; set; }
         bool? UseCTestTestProperties { get; set; }
         int? TestTimeoutInSeconds { get; set; }
+        string SourcePathMapping { get; set; }
+        bool? MapOnlyMissingSourcePaths { get; set; }
         string BatchForTestSetup { get; set; }
         string BatchForTestTeardown { get; set; }
         string TraitsRegexesAfter { get; set; }
@@ -90,6 +92,8 @@ namespace GoogleTestAdapter.Settings
             self.EnvironmentVariables = self.EnvironmentVariables ?? other.EnvironmentVariables;
             self.UseCTestTestProperties = self.UseCTestTestProperties ?? other.UseCTestTestProperties;
             self.TestTimeoutInSeconds = self.TestTimeoutInSeconds ?? other.TestTimeoutInSeconds;
+            self.SourcePathMapping = self.SourcePathMapping ?? other.SourcePathMapping;
+            self.MapOnlyMissingSourcePaths = self.MapOnlyMissingSourcePaths ?? other.MapOnlyMissingSourcePaths;
             self.BatchForTestSetup = self.BatchForTestSetup ?? other.BatchForTestSetup;
             self.BatchForTestTeardown = self.BatchForTestTeardown ?? other.BatchForTestTeardown;
             self.TraitsRegexesAfter = self.TraitsRegexesAfter ?? other.TraitsRegexesAfter;

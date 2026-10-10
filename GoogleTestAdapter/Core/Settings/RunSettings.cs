@@ -46,6 +46,12 @@ namespace GoogleTestAdapter.Settings
         public virtual int? TestTimeoutInSeconds { get; set; }
         public bool ShouldSerializeTestTimeoutInSeconds() { return TestTimeoutInSeconds != null; }
 
+        public virtual string SourcePathMapping { get; set; }
+        public bool ShouldSerializeSourcePathMapping() { return SourcePathMapping != null; }
+
+        public virtual bool? MapOnlyMissingSourcePaths { get; set; }
+        public bool ShouldSerializeMapOnlyMissingSourcePaths() { return MapOnlyMissingSourcePaths != null; }
+
         public virtual bool? CatchExceptions { get; set; }
         public bool ShouldSerializeCatchExceptions() { return CatchExceptions != null; }
 

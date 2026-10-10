@@ -456,6 +456,45 @@ namespace GoogleTestAdapter.Settings
         public virtual bool UseCTestTestProperties => _currentSettings.UseCTestTestProperties ?? OptionUseCTestTestPropertiesDefaultValue;
 
 
+        public const string OptionSourcePathMapping = "Source path mapping";
+        public const string OptionSourcePathMappingDescription =
+            "Maps source paths of test executables built elsewhere (e.g. by CI or within a container) to local paths, making test locations and failure stack traces navigable. " +
+            "Syntax: " + SourcePathMapper.MappingSeparator + " separates the build path from the local path replacing it, pairs are separated by " + SourcePathMapper.PairSeparator +
+            ". A path is mapped if it starts with the build path (case-insensitive, \\ and / are equivalent); the first matching pair wins.\n" +
+            "Example: C:\\agent\\_work\\1\\s" + SourcePathMapper.MappingSeparator + "$(SolutionDir)" + SourcePathMapper.PairSeparator + "D:\\build\\deps" + SourcePathMapper.MappingSeparator + "C:\\deps\n" +
+            PlaceholderReplacer.PathExtensionPlaceholders;
+        public const string OptionSourcePathMappingDefaultValue = "";
+
+        public virtual string SourcePathMapping => _currentSettings.SourcePathMapping ?? OptionSourcePathMappingDefaultValue;
+
+
+        public const string OptionMapOnlyMissingSourcePaths = "Map only missing source paths";
+        public const string OptionMapOnlyMissingSourcePathsDescription =
+            "If true, option '" + OptionSourcePathMapping + "' is only applied to paths of files which do not exist (e.g. to map paths of executables built elsewhere, but not those of executables built locally). " +
+            "If false, all matching paths are mapped.";
+        public const bool OptionMapOnlyMissingSourcePathsDefaultValue = false;
+
+        public virtual bool MapOnlyMissingSourcePaths => _currentSettings.MapOnlyMissingSourcePaths ?? OptionMapOnlyMissingSourcePathsDefaultValue;
+
+        public SourcePathMapper GetSourcePathMapper(string executable, ILogger logger)
+        {
+            string sourcePathMapping = SourcePathMapping;
+            if (string.IsNullOrWhiteSpace(sourcePathMapping))
+                return SourcePathMapper.Identity;
+
+            try
+            {
+                sourcePathMapping = _placeholderReplacer.ReplaceSourcePathMappingPlaceholders(sourcePathMapping, executable);
+                return new SourcePathMapper(SourcePathMapper.Parse(sourcePathMapping), MapOnlyMissingSourcePaths);
+            }
+            catch (ArgumentException e)
+            {
+                logger.LogWarning($"Option '{OptionSourcePathMapping}' is ignored: {e.Message}");
+                return SourcePathMapper.Identity;
+            }
+        }
+
+
         public const string OptionTestTimeoutInSeconds = "Test timeout in s";
         public const string OptionTestTimeoutInSecondsDescription =
             "Number of seconds after which a running test is assumed to hang: the test executable is killed, the test is reported as failed, and the remaining tests are run. " +

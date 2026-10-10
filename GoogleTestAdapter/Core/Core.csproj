@@ -91,6 +91,7 @@
     <Compile Include="TestCases\TestCaseFactory.cs" />
     <Compile Include="Helpers\Utils.cs" />
     <Compile Include="Helpers\GoogleTestXmlFile.cs" />
+    <Compile Include="Helpers\SourcePathMapper.cs" />
     <Compile Include="Settings\IGoogleTestAdapterSettings.cs" />
     <Compile Include="Model\TestCase.cs" />
     <Compile Include="Model\TestResult.cs" />

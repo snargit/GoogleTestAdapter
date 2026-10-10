@@ -162,7 +162,7 @@ namespace GoogleTestAdapter.Runners
                 {
                     break;
                 }
-                var streamingParser = new StreamingStandardOutputTestResultParser(arguments.TestCases, _logger, _frameworkReporter);
+                var streamingParser = new StreamingStandardOutputTestResultParser(arguments.TestCases, _logger, _frameworkReporter, _settings.GetSourcePathMapper(executable, _logger));
                 var results = RunTests(executable, workingDir, isBeingDebugged, processExecutorFactory, arguments, environmentVariables, resultXmlFile, streamingParser).ToArray();
 
                 try

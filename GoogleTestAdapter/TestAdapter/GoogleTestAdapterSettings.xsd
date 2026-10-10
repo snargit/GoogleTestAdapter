@@ -37,6 +37,8 @@
       <xsd:element name="PathExtension"                minOccurs="0" type="xsd:string"  />
       <xsd:element name="EnvironmentVariables"         minOccurs="0" type="xsd:string"  />
       <xsd:element name="UseCTestTestProperties"       minOccurs="0" type="xsd:boolean" />
+      <xsd:element name="SourcePathMapping"            minOccurs="0" type="xsd:string"  />
+      <xsd:element name="MapOnlyMissingSourcePaths"    minOccurs="0" type="xsd:boolean" />
       <xsd:element name="TestTimeoutInSeconds" minOccurs="0">
         <xsd:simpleType>
           <xsd:restriction base="xsd:int">

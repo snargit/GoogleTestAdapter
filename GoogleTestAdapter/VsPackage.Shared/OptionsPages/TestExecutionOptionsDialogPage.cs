@@ -135,6 +135,30 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         private int _testTimeoutInSeconds = SettingsWrapper.OptionTestTimeoutInSecondsDefaultValue;
 
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
+        [DisplayName(SettingsWrapper.OptionSourcePathMapping)]
+        [Description(SettingsWrapper.OptionSourcePathMappingDescription)]
+        public string SourcePathMapping
+        {
+            get => _sourcePathMapping;
+            set
+            {
+                SourcePathMapper.Parse(value);
+                SetAndNotify(ref _sourcePathMapping, value);
+            }
+        }
+        private string _sourcePathMapping = SettingsWrapper.OptionSourcePathMappingDefaultValue;
+
+        [Category(SettingsWrapper.CategoryRunConfigurationName)]
+        [DisplayName(SettingsWrapper.OptionMapOnlyMissingSourcePaths)]
+        [Description(SettingsWrapper.OptionMapOnlyMissingSourcePathsDescription)]
+        public bool MapOnlyMissingSourcePaths
+        {
+            get => _mapOnlyMissingSourcePaths;
+            set => SetAndNotify(ref _mapOnlyMissingSourcePaths, value);
+        }
+        private bool _mapOnlyMissingSourcePaths = SettingsWrapper.OptionMapOnlyMissingSourcePathsDefaultValue;
+
+        [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionAdditionalTestExecutionParams)]
         [Description(SettingsWrapper.OptionAdditionalTestExecutionParamsDescription)]
         public string AdditionalTestExecutionParams

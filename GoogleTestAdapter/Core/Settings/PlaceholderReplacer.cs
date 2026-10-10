@@ -139,6 +139,20 @@ namespace GoogleTestAdapter.Settings
         }
 
 
+        public string ReplaceSourcePathMappingPlaceholders(string sourcePathMapping, string executable)
+        {
+            sourcePathMapping = ReplaceExecutablePlaceholders(sourcePathMapping, executable);
+            sourcePathMapping = ReplacePlatformAndConfigurationPlaceholders(sourcePathMapping, executable);
+            sourcePathMapping = ReplaceSolutionDirPlaceholder(sourcePathMapping, executable);
+            sourcePathMapping = ReplaceEnvironmentVariables(sourcePathMapping);
+            sourcePathMapping = ReplaceHelperFileSettings(sourcePathMapping, executable);
+
+            CheckForRemainingPlaceholders(sourcePathMapping, SettingsWrapper.OptionSourcePathMapping);
+
+            return sourcePathMapping;
+        }
+
+
         public const string EnvironmentPlaceholders = "Placeholders:\n" +
                                                         DescriptionOfSolutionDirPlaceHolder + "\n" +
                                                         DescriptionOfPlatformNamePlaceholder + "\n" +

@@ -64,12 +64,15 @@ namespace GoogleTestAdapter.TestResults
         }
 
         public StreamingStandardOutputTestResultParser(IEnumerable<TestCase> testCasesRun,
-                ILogger logger, ITestFrameworkReporter reporter)
+                ILogger logger, ITestFrameworkReporter reporter, SourcePathMapper sourcePathMapper = null)
         {
             _testCasesRun = testCasesRun.ToList();
             _logger = logger;
             _reporter = reporter;
+            _sourcePathMapper = sourcePathMapper ?? SourcePathMapper.Identity;
         }
+
+        private readonly SourcePathMapper _sourcePathMapper;
 
         public void ReportLine(string line)
         {
@@ -230,7 +233,7 @@ namespace GoogleTestAdapter.TestResults
             }
             if (IsFailedLine(line))
             {
-                ErrorMessageParser parser = new ErrorMessageParser(errorMsg, testCase.FullyQualifiedName);
+                ErrorMessageParser parser = new ErrorMessageParser(errorMsg, testCase.FullyQualifiedName, _sourcePathMapper);
                 parser.Parse();
                 return WithStandardOutput(CreateFailedTestResult(
                     testCase,
@@ -245,7 +248,7 @@ namespace GoogleTestAdapter.TestResults
             if (IsSkippedLine(line))
             {
                 // just like for failed tests, the skip message is the error message
-                ErrorMessageParser parser = new ErrorMessageParser(errorMsg, testCase.FullyQualifiedName);
+                ErrorMessageParser parser = new ErrorMessageParser(errorMsg, testCase.FullyQualifiedName, _sourcePathMapper);
                 parser.Parse();
                 return WithStandardOutput(CreateSkippedTestResult(
                     testCase,

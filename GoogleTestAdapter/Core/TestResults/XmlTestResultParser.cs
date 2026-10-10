@@ -33,9 +33,13 @@ namespace GoogleTestAdapter.TestResults
         private readonly Lazy<IDictionary<string, TestCase>> _workaroundMapLazy;
 
 
-        public XmlTestResultParser(IEnumerable<TestCase> testCasesRun, string testExecutable, string xmlResultFile, ILogger logger)
+        private readonly SourcePathMapper _sourcePathMapper;
+
+        public XmlTestResultParser(IEnumerable<TestCase> testCasesRun, string testExecutable, string xmlResultFile, ILogger logger,
+            SourcePathMapper sourcePathMapper = null)
         {
             _logger = logger;
+            _sourcePathMapper = sourcePathMapper ?? SourcePathMapper.Identity;
             _testExecutable = testExecutable;
             _xmlResultFile = xmlResultFile;
             _testCasesMap = testCasesRun.ToDictionary(tc => tc.FullyQualifiedName, tc => tc);
@@ -173,7 +177,7 @@ namespace GoogleTestAdapter.TestResults
                     // tests skipped with GTEST_SKIP() have status "run" (Google Test >= 1.10)
                     if (testcaseNode.Attributes["result"]?.InnerText == "skipped")
                     {
-                        var skipParser = new ErrorMessageParser(testcaseNode.SelectNodes("skipped"), testCase.FullyQualifiedName);
+                        var skipParser = new ErrorMessageParser(testcaseNode.SelectNodes("skipped"), testCase.FullyQualifiedName, _sourcePathMapper);
                         skipParser.Parse();
                         testResult.Outcome = TestOutcome.Skipped;
                         testResult.ErrorMessage = skipParser.ErrorMessage == "" ? null : skipParser.ErrorMessage;
@@ -188,7 +192,7 @@ namespace GoogleTestAdapter.TestResults
                     }
                     else
                     {
-                        var parser = new ErrorMessageParser(failureNodes, testCase.FullyQualifiedName);
+                        var parser = new ErrorMessageParser(failureNodes, testCase.FullyQualifiedName, _sourcePathMapper);
                         parser.Parse();
                         testResult.Outcome = TestOutcome.Failed;
                         testResult.ErrorMessage = parser.ErrorMessage;

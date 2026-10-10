@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using GoogleTestAdapter.Common;
 using GoogleTestAdapter.DiaResolver;
+using GoogleTestAdapter.Helpers;
 using GoogleTestAdapter.Model;
 using GoogleTestAdapter.ProcessExecution.Contracts;
 using GoogleTestAdapter.Runners;
@@ -27,6 +28,7 @@ namespace GoogleTestAdapter.TestCases
         private readonly IDiaResolverFactory _diaResolverFactory;
         private readonly IProcessExecutorFactory _processExecutorFactory;
         private readonly MethodSignatureCreator _signatureCreator = new MethodSignatureCreator();
+        private SourcePathMapper _sourcePathMapper = SourcePathMapper.Identity;
 
         public TestCaseFactory(string executable, ILogger logger, SettingsWrapper settings,
             IDiaResolverFactory diaResolverFactory, IProcessExecutorFactory processExecutorFactory)
@@ -44,6 +46,7 @@ namespace GoogleTestAdapter.TestCases
             var testCases = new List<TestCase>();
 
             var resolver = new TestCaseResolver(_executable, _diaResolverFactory, _settings, _logger);
+            _sourcePathMapper = _settings.GetSourcePathMapper(_executable, _logger);
 
             var descriptors = new List<TestCaseDescriptor>();
             var parser = new StreamingListTestsParser(_settings.TestNameSeparator);
@@ -111,7 +114,7 @@ namespace GoogleTestAdapter.TestCases
 
                 if (!string.IsNullOrWhiteSpace(_settings.ExitCodeTestCase))
                 {
-                    var exitCodeTestCase = ExitCodeTestsReporter.CreateExitCodeTestCase(_settings, _executable, resolver.MainMethodLocation);
+                    var exitCodeTestCase = ExitCodeTestsReporter.CreateExitCodeTestCase(_settings, _executable, MapSourcePath(resolver.MainMethodLocation));
                     testCases.Add(exitCodeTestCase);
                     reportTestCase?.Invoke(exitCodeTestCase);
                     _logger.DebugInfo($"Exit code of executable '{_executable}' is ignored for test discovery because option '{SettingsWrapper.OptionExitCodeTestCase}' is set");
@@ -237,7 +240,7 @@ namespace GoogleTestAdapter.TestCases
             if (location != null)
             {
                 var testCase = new TestCase(
-                    descriptor.FullyQualifiedName, _executable, descriptor.DisplayName, location.Sourcefile, (int)location.Line)
+                    descriptor.FullyQualifiedName, _executable, descriptor.DisplayName, _sourcePathMapper.Map(location.Sourcefile), (int)location.Line)
                 {
                     Namespace = location.Namespace
                 };
@@ -247,6 +250,19 @@ namespace GoogleTestAdapter.TestCases
 
             _logger.LogWarning($"Could not find source location for test {descriptor.FullyQualifiedName}, executable: {_executable}");
             return CreateTestCase(descriptor);
+        }
+
+        private TestCaseLocation MapSourcePath(TestCaseLocation location)
+        {
+            if (location == null || _sourcePathMapper.IsIdentity)
+                return location;
+
+            var mappedLocation = new TestCaseLocation(location.Symbol, _sourcePathMapper.Map(location.Sourcefile), location.Line)
+            {
+                Namespace = location.Namespace
+            };
+            mappedLocation.Traits.AddRange(location.Traits);
+            return mappedLocation;
         }
 
         // labels of CMake tests (test property LABELS) are treated like traits defined in the test's code

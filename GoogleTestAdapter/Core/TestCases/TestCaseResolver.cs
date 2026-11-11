@@ -417,7 +417,7 @@ namespace GoogleTestAdapter.TestCases
         private static readonly Regex InternalAnonymousNamespaceRegex = new Regex(@"^A0x[0-9a-fA-F]{8}$");
 
         // e.g. "outer::`anonymous namespace'::" => "outer::(anonymous namespace)"
-        private static string GetNamespace(string ns)
+        internal static string GetNamespace(string ns)
         {
             if (ns.Length == 0)
                 return ns;

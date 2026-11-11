@@ -62,6 +62,7 @@
     <Compile Include="Framework\ITestFrameworkReporter.cs" />
     <Compile Include="ProcessExecution\ProcessExecutorFactory.cs" />
     <Compile Include="Framework\TestRunCanceledException.cs" />
+    <Compile Include="GoogleBenchmarkConstants.cs" />
     <Compile Include="GoogleTestConstants.cs" />
     <Compile Include="ExecutableInfo.cs" />
     <Compile Include="GoogleTestDiscoverer.cs" />
@@ -89,6 +90,8 @@
     <Compile Include="TestCases\ListTestsParser.cs" />
     <Compile Include="TestCases\MethodSignatureCreator.cs" />
     <Compile Include="TestCases\TestCaseDescriptor.cs" />
+    <Compile Include="TestCases\BenchmarkLocationResolver.cs" />
+    <Compile Include="TestCases\BenchmarkNames.cs" />
     <Compile Include="TestCases\TestCaseFactory.cs" />
     <Compile Include="Helpers\Utils.cs" />
     <Compile Include="Helpers\GoogleTestXmlFile.cs" />

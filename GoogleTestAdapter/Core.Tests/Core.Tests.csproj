@@ -104,6 +104,7 @@
     <Compile Include="Runners\SequentialTestRunnerTests.cs" />
     <Compile Include="Settings\HelperFilesCacheTests.cs" />
     <Compile Include="Settings\PlaceholderReplacerTests.cs" />
+    <Compile Include="TestCases\BenchmarkNamesTests.cs" />
     <Compile Include="TestCases\TestCaseResolverTests.cs" />
     <Compile Include="TestCases\TestCaseFactoryTests.cs" />
     <Compile Include="TestCases\ListTestsParserTests.cs" />

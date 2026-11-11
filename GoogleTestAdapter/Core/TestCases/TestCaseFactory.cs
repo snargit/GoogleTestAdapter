@@ -27,20 +27,84 @@ namespace GoogleTestAdapter.TestCases
         private readonly string _executable;
         private readonly IDiaResolverFactory _diaResolverFactory;
         private readonly IProcessExecutorFactory _processExecutorFactory;
+        private readonly TestFramework _framework;
         private readonly MethodSignatureCreator _signatureCreator = new MethodSignatureCreator();
         private SourcePathMapper _sourcePathMapper = SourcePathMapper.Identity;
 
         public TestCaseFactory(string executable, ILogger logger, SettingsWrapper settings,
-            IDiaResolverFactory diaResolverFactory, IProcessExecutorFactory processExecutorFactory)
+            IDiaResolverFactory diaResolverFactory, IProcessExecutorFactory processExecutorFactory,
+            TestFramework framework = TestFramework.GoogleTest)
         {
             _logger = logger;
             _settings = settings;
             _executable = executable;
             _diaResolverFactory = diaResolverFactory;
             _processExecutorFactory = processExecutorFactory;
+            _framework = framework;
         }
 
         public IList<TestCase> CreateTestCases(Action<TestCase> reportTestCase = null)
+        {
+            return _framework == TestFramework.GoogleBenchmark
+                ? CreateBenchmarkTestCases(reportTestCase)
+                : CreateGoogleTestTestCases(reportTestCase);
+        }
+
+        /// <summary>
+        /// Executes the executable for listing its tests, passing its output to <paramref name="reportOutputLine"/>
+        /// and collecting it in <paramref name="standardOutput"/>
+        /// </summary>
+        /// <returns>False if the execution timed out (which has been logged)</returns>
+        private bool ExecuteDiscovery(string finalParams, string workingDir, Action<string> reportOutputLine,
+            List<string> standardOutput, out int processExitCode)
+        {
+            int exitCode = ExecutionFailed;
+            IProcessExecutor executor = null;
+            var environmentVariables = _settings.GetEnvironmentVariablesForDiscovery(_executable);
+
+            // on a timeout, the output is logged while the executable might still be producing it
+            void OnReportOutputLine(string line)
+            {
+                lock (standardOutput)
+                {
+                    standardOutput.Add(line);
+                    reportOutputLine?.Invoke(line);
+                }
+            }
+
+            var listAndParseTestsTask = Task.Run(() =>
+            {
+                _logger.VerboseInfo($"Starting test discovery for {_executable}");
+                executor = _processExecutorFactory.CreateExecutor(false, _logger);
+                exitCode = executor.ExecuteCommandBlocking(
+                    _executable,
+                    finalParams,
+                    workingDir,
+                    _settings.GetPathExtension(_executable),
+                    environmentVariables,
+                    OnReportOutputLine);
+                _logger.VerboseInfo($"Finished execution of {_executable}");
+            });
+            _logger.VerboseInfo($"Scheduled test discovery for {_executable}");
+
+            if (!listAndParseTestsTask.Wait(TimeSpan.FromSeconds(_settings.TestDiscoveryTimeoutInSeconds)))
+            {
+                executor?.Cancel();
+                List<string> outputSoFar;
+                lock (standardOutput)
+                {
+                    outputSoFar = standardOutput.ToList();
+                }
+                LogTimeoutError(workingDir, finalParams, outputSoFar);
+                processExitCode = ExecutionFailed;
+                return false;
+            }
+
+            processExitCode = exitCode;
+            return true;
+        }
+
+        private IList<TestCase> CreateGoogleTestTestCases(Action<TestCase> reportTestCase)
         {
             var standardOutput = new List<string>();
             var testCases = new List<TestCase>();
@@ -55,48 +119,10 @@ namespace GoogleTestAdapter.TestCases
             string testListFile = Path.GetTempFileName();
             string workingDir = _settings.GetWorkingDirForDiscovery(_executable);
             var finalParams = GetDiscoveryParams(testListFile);
-            var environmentVariables = _settings.GetEnvironmentVariablesForDiscovery(_executable);
             try
             {
-                int processExitCode = ExecutionFailed;
-                IProcessExecutor executor = null;
-
-                // on a timeout, the output is logged while the executable might still be producing it
-                void OnReportOutputLine(string line)
-                {
-                    lock (standardOutput)
-                    {
-                        standardOutput.Add(line);
-                        parser.ReportLine(line);
-                    }
-                }
-
-                var listAndParseTestsTask = Task.Run(() =>
-                {
-                    _logger.VerboseInfo($"Starting test discovery for {_executable}");
-                    executor = _processExecutorFactory.CreateExecutor(false, _logger);
-                    processExitCode = executor.ExecuteCommandBlocking(
-                        _executable,
-                        finalParams,
-                        workingDir,
-                        _settings.GetPathExtension(_executable),
-                        environmentVariables,
-                        OnReportOutputLine);
-                    _logger.VerboseInfo($"Finished execution of {_executable}");
-                });
-                _logger.VerboseInfo($"Scheduled test discovery for {_executable}");
-
-                if (!listAndParseTestsTask.Wait(TimeSpan.FromSeconds(_settings.TestDiscoveryTimeoutInSeconds)))
-                {
-                    executor?.Cancel();
-                    List<string> outputSoFar;
-                    lock (standardOutput)
-                    {
-                        outputSoFar = standardOutput.ToList();
-                    }
-                    LogTimeoutError(workingDir, finalParams, outputSoFar);
+                if (!ExecuteDiscovery(finalParams, workingDir, parser.ReportLine, standardOutput, out int processExitCode))
                     return new List<TestCase>();
-                }
 
                 var suite2TestCases = new Dictionary<string, ISet<TestCase>>();
                 var xmlLocations = new XmlTestListParser(_executable, _logger).ParseTestLocations(testListFile);
@@ -157,6 +183,101 @@ namespace GoogleTestAdapter.TestCases
                 TryDelete(testListFile);
             }
             return testCases;
+        }
+
+        // Google Benchmark lists the names of the benchmarks, one per line, in the order they are run
+        private IList<TestCase> CreateBenchmarkTestCases(Action<TestCase> reportTestCase)
+        {
+            var standardOutput = new List<string>();
+            var testCases = new List<TestCase>();
+            _sourcePathMapper = _settings.GetSourcePathMapper(_executable, _logger);
+
+            string workingDir = _settings.GetWorkingDirForDiscovery(_executable);
+            string finalParams = GoogleBenchmarkConstants.ListTestsOption;
+            string userParams = _settings.GetUserParametersForDiscovery(_executable);
+            if (!string.IsNullOrWhiteSpace(userParams))
+            {
+                finalParams += $" {userParams}";
+            }
+
+            try
+            {
+                if (!ExecuteDiscovery(finalParams, workingDir, null, standardOutput, out int processExitCode))
+                    return new List<TestCase>();
+
+                // the output of failed executions (e.g. of unknown flags) is not a list of benchmarks
+                bool hasExitCodeTestCase = !string.IsNullOrWhiteSpace(_settings.ExitCodeTestCase);
+                if (!hasExitCodeTestCase && !CheckProcessExitCode(processExitCode, standardOutput, workingDir, finalParams))
+                    return new List<TestCase>();
+
+                List<string> benchmarkNames = standardOutput
+                    .Select(line => line.TrimEnd())
+                    .Where(line => line.Length > 0)
+                    .Distinct()
+                    .ToList();
+
+                using (var resolver = new BenchmarkLocationResolver(_executable, _diaResolverFactory, _settings, _logger))
+                {
+                    var descriptors = new List<TestCaseDescriptor>();
+                    foreach (string benchmarkName in benchmarkNames)
+                    {
+                        testCases.Add(CreateBenchmarkTestCase(benchmarkName, resolver, out TestCaseDescriptor descriptor));
+                        descriptors.Add(descriptor);
+                    }
+
+                    // benchmarks of the same function or fixture method form a suite
+                    Dictionary<string, int> nrOfTestCasesBySuite = descriptors
+                        .GroupBy(d => d.Suite, StringComparer.Ordinal)
+                        .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+                    for (int i = 0; i < testCases.Count; i++)
+                    {
+                        testCases[i].Properties.Add(new TestCaseMetaDataProperty(nrOfTestCasesBySuite[descriptors[i].Suite], testCases.Count, isBenchmark: true));
+                        reportTestCase?.Invoke(testCases[i]);
+                    }
+
+                    if (hasExitCodeTestCase)
+                    {
+                        var exitCodeTestCase = ExitCodeTestsReporter.CreateExitCodeTestCase(_settings, _executable, MapSourcePath(resolver.MainMethodLocation));
+                        testCases.Add(exitCodeTestCase);
+                        reportTestCase?.Invoke(exitCodeTestCase);
+                        _logger.DebugInfo($"Exit code of executable '{_executable}' is ignored for test discovery because option '{SettingsWrapper.OptionExitCodeTestCase}' is set");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                SequentialTestRunner.LogExecutionError(_logger, _executable, workingDir, finalParams, e);
+                return new List<TestCase>();
+            }
+            return testCases;
+        }
+
+        private TestCase CreateBenchmarkTestCase(string benchmarkName, BenchmarkLocationResolver resolver, out TestCaseDescriptor descriptor)
+        {
+            TestCaseLocation location = resolver.FindBenchmarkLocation(benchmarkName, out bool isFixtureBenchmark);
+            descriptor = BenchmarkNames.CreateDescriptor(benchmarkName, isFixtureBenchmark);
+
+            TestCase testCase;
+            if (location != null)
+            {
+                testCase = new TestCase(benchmarkName, _executable, benchmarkName, _sourcePathMapper.Map(location.Sourcefile), (int)location.Line)
+                {
+                    Namespace = location.Namespace
+                };
+            }
+            else
+            {
+                // e.g. benchmarks with custom names, and functions the linker inlined or folded
+                if (resolver.HasSymbols)
+                    _logger.DebugWarning($"Could not find source location for benchmark {benchmarkName}, executable: {_executable}");
+                testCase = new TestCase(benchmarkName, _executable, benchmarkName, "", 0);
+            }
+
+            var traits = new List<Trait> { new Trait(GoogleBenchmarkConstants.TraitName, GoogleBenchmarkConstants.TraitValue) };
+            testCase.Traits.AddRange(GetFinalTraits(benchmarkName, WithLabelTraits(descriptor, traits)));
+            testCase.TestClass = descriptor.TestClass;
+            testCase.TestGroup = descriptor.TestGroup;
+            return testCase;
         }
 
         // Google Test >= 1.8.1 writes the tests including their source locations to the result XML file (upstream #309)

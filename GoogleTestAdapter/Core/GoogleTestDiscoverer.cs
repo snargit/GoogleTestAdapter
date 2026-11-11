@@ -49,11 +49,17 @@ namespace GoogleTestAdapter
         {
             settings.ExecuteWithSettingsForExecutable(executable, logger, () =>
             {
-                if (!VerifyExecutableTrust(executable, settings, logger) || !IsGoogleTestExecutable(executable, settings.TestDiscoveryRegex, logger))
+                if (!VerifyExecutableTrust(executable, settings, logger))
                     return;
+                string indicator = GetGoogleTestExecutableIndicator(executable, settings.TestDiscoveryRegex, logger);
+                if (indicator == null)
+                    return;
+                TestFramework framework = GetTestFramework(executable, indicator, logger);
 
                 // discovery of executables with many tests takes a while, and their tests are only reported at the end
-                logger.LogInfo("Discovering tests in executable " + executable);
+                logger.LogInfo(framework == TestFramework.GoogleBenchmark
+                    ? "Discovering benchmarks in executable " + executable
+                    : "Discovering tests in executable " + executable);
 
                 int nrOfTestCases = 0;
                 void ReportTestCases(TestCase testCase)
@@ -63,7 +69,7 @@ namespace GoogleTestAdapter
                     nrOfTestCases++;
                 }
 
-                var factory = new TestCaseFactory(executable, logger, settings, diaResolverFactory, processExecutorFactory);
+                var factory = new TestCaseFactory(executable, logger, settings, diaResolverFactory, processExecutorFactory, framework);
                 factory.CreateTestCases(ReportTestCases);
                 logger.LogInfo("Found " + nrOfTestCases + " tests in executable " + executable);
             });
@@ -80,7 +86,10 @@ namespace GoogleTestAdapter
 
         public IList<TestCase> GetTestsFromExecutable(string executable)
         {
-            var factory = new TestCaseFactory(executable, _logger, _settings, _diaResolverFactory, _processExecutorFactory);
+            TestFramework framework = File.Exists(executable)
+                ? GetTestFramework(executable, GetGoogleTestExecutableIndicator(executable, _settings.TestDiscoveryRegex, _logger), _logger)
+                : TestFramework.GoogleTest;
+            var factory = new TestCaseFactory(executable, _logger, _settings, _diaResolverFactory, _processExecutorFactory, framework);
             IList<TestCase> testCases = factory.CreateTestCases();
 
             foreach (TestCase testCase in testCases)
@@ -103,9 +112,15 @@ namespace GoogleTestAdapter
         public const string IndicatorGoogleTestFunctions = "GoogleTestFunctions";
         public const string IndicatorGoogleTestMarkers = "GoogleTestMarkers";
         public const string IndicatorTestDiscoveryRegex = "TestDiscoveryRegex";
+        public const string IndicatorGoogleBenchmarkDll = "GoogleBenchmarkDll";
+        public const string IndicatorGoogleBenchmarkFunctions = "GoogleBenchmarkFunctions";
+        public const string IndicatorGoogleBenchmarkMarkers = "GoogleBenchmarkMarkers";
 
-        /// <returns>What makes the executable a Google Test executable (one of the Indicator* constants), or null if it
-        /// is not one</returns>
+        private static readonly string[] GoogleBenchmarkIndicators =
+            { IndicatorGoogleBenchmarkDll, IndicatorGoogleBenchmarkFunctions, IndicatorGoogleBenchmarkMarkers };
+
+        /// <returns>What makes the executable a Google Test or Google Benchmark executable (one of the Indicator*
+        /// constants), or null if it is neither</returns>
         public static string GetGoogleTestExecutableIndicator(string executable, string customRegex, ILogger logger)
         {
             string googleTestIndicatorFile = $"{executable}{GoogleTestIndicator}";
@@ -117,13 +132,12 @@ namespace GoogleTestAdapter
 
             if (string.IsNullOrWhiteSpace(customRegex))
             {
-                string indicator = PeParser.ParseImports(executable, logger).Any(IsGoogleTestDll) ? IndicatorGoogleTestDll
-                    : PeParser.FindImportedFunction(executable, IsGoogleTestFunction, logger) ? IndicatorGoogleTestFunctions
-                    : Utils.BinaryFileContainsStrings(executable, Encoding.ASCII, GoogleTestConstants.GoogleTestExecutableMarkers) ? IndicatorGoogleTestMarkers
-                    : null;
+                string indicator = FindTestFrameworkIndicator(executable, logger);
                 if (indicator != null)
                 {
-                    logger.DebugInfo($"Google Test indicators found in executable {executable}");
+                    logger.DebugInfo(IsGoogleBenchmarkIndicator(indicator)
+                        ? $"Google Benchmark indicators found in executable {executable}"
+                        : $"Google Test indicators found in executable {executable}");
                     return indicator;
                 }
             }
@@ -138,6 +152,74 @@ namespace GoogleTestAdapter
 
             logger.DebugInfo($"File does not seem to be Google Test executable: '{executable}'");
             return null;
+        }
+
+        // Google Test wins for executables containing both tests and benchmarks
+        private static string FindTestFrameworkIndicator(string executable, ILogger logger)
+        {
+            List<string> imports = PeParser.ParseImports(executable, logger);
+            if (imports.Any(IsGoogleTestDll))
+                return IndicatorGoogleTestDll;
+            if (PeParser.FindImportedFunction(executable, IsGoogleTestFunction, logger))
+                return IndicatorGoogleTestFunctions;
+
+            byte[] content = File.ReadAllBytes(executable);
+            if (Utils.BinaryContainsStrings(content, Encoding.ASCII, GoogleTestConstants.GoogleTestExecutableMarkers))
+                return IndicatorGoogleTestMarkers;
+
+            if (imports.Any(IsGoogleBenchmarkDll))
+                return IndicatorGoogleBenchmarkDll;
+            if (PeParser.FindImportedFunction(executable, IsGoogleBenchmarkFunction, logger))
+                return IndicatorGoogleBenchmarkFunctions;
+            if (Utils.BinaryContainsStrings(content, Encoding.ASCII, GoogleBenchmarkConstants.GoogleBenchmarkExecutableMarkers))
+                return IndicatorGoogleBenchmarkMarkers;
+
+            return null;
+        }
+
+        public static bool IsGoogleBenchmarkIndicator(string indicator)
+        {
+            return GoogleBenchmarkIndicators.Contains(indicator);
+        }
+
+        /// <param name="indicator">the result of <see cref="GetGoogleTestExecutableIndicator"/> for the executable</param>
+        /// <returns>The test framework of a test executable; executables made test executables by an indicator file
+        /// or the test discovery regex are inspected for it</returns>
+        public static TestFramework GetTestFramework(string executable, string indicator, ILogger logger)
+        {
+            if (indicator == IndicatorFile || indicator == IndicatorTestDiscoveryRegex)
+                indicator = FindTestFrameworkIndicator(executable, logger);
+
+            return IsGoogleBenchmarkIndicator(indicator) ? TestFramework.GoogleBenchmark : TestFramework.GoogleTest;
+        }
+
+        public static bool IsGoogleBenchmarkDll(string import)
+        {
+            return GoogleBenchmarkConstants.GoogleBenchmarkDllMarkers.Contains(import, StringComparer.OrdinalIgnoreCase);
+        }
+
+        // scopes of Google Benchmark's core: every executable linking Google Benchmark as DLL uses some of them (e.g.
+        // benchmark::internal::RegisterBenchmarkInternal() for BENCHMARK(), benchmark::State for the benchmark loop)
+        private static readonly string[] GoogleBenchmarkScopes = { "benchmark::internal::", "benchmark::State::" };
+
+        private static readonly Regex MsvcGoogleBenchmarkFunctionRegex = new Regex(
+            @"@(?:internal|State)@benchmark@@|^\?\?[0-9]State@benchmark@@", RegexOptions.Compiled);
+
+        private static readonly Regex ItaniumGoogleBenchmarkFunctionRegex = new Regex(
+            @"^_?_ZNK?9benchmark(?:8internal|5State)(?=[0-9CDE])", RegexOptions.Compiled);
+
+        /// <summary>
+        /// Executables linking Google Benchmark as DLL, whatever its name, import functions of benchmark::internal or
+        /// benchmark::State (see <see cref="IsGoogleTestFunction"/>).
+        /// </summary>
+        public static bool IsGoogleBenchmarkFunction(string importedFunction)
+        {
+            string qualifiedName = SymbolUndecorator.UndecorateNameOnly(importedFunction);
+            if (qualifiedName != null)
+                return GoogleBenchmarkScopes.Any(scope => qualifiedName.StartsWith(scope, StringComparison.Ordinal));
+
+            return MsvcGoogleBenchmarkFunctionRegex.IsMatch(importedFunction)
+                || ItaniumGoogleBenchmarkFunctionRegex.IsMatch(importedFunction);
         }
 
         public static bool IsGoogleTestDll(string import)

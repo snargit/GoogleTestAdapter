@@ -124,8 +124,12 @@ namespace GoogleTestAdapter.Helpers
 
         public static bool BinaryFileContainsStrings(string executable, Encoding encoding, IEnumerable<string> strings)
         {
-            byte[] file = File.ReadAllBytes(executable);
-            return strings.All(s => file.IndexOf(encoding.GetBytes(s)) >= 0);
+            return BinaryContainsStrings(File.ReadAllBytes(executable), encoding, strings);
+        }
+
+        public static bool BinaryContainsStrings(byte[] content, Encoding encoding, IEnumerable<string> strings)
+        {
+            return strings.All(s => content.IndexOf(encoding.GetBytes(s)) >= 0);
         }
 
         public static string[] SplitAdditionalPdbs(string additionalPdbs)

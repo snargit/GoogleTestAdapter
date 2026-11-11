@@ -53,6 +53,14 @@ namespace GoogleTestAdapter.Model
             get { return Properties.OfType<TestCaseMetaDataProperty>().Any(p => p.IsTearDownTestSuite); }
         }
 
+        /// <summary>
+        /// Whether the test case is a benchmark of a Google Benchmark executable
+        /// </summary>
+        public bool IsBenchmark
+        {
+            get { return Properties.OfType<TestCaseMetaDataProperty>().Any(p => p.IsBenchmark); }
+        }
+
         public override bool Equals(object obj)
         {
             if (!(obj is TestCase other))

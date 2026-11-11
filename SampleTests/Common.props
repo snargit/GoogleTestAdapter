@@ -17,6 +17,7 @@
 
         <!-- Google Test as provided by the ThirdParty\googletest submodule -->
         <GoogleTestDir>$(EnlistmentRoot)ThirdParty\googletest\googletest\</GoogleTestDir>
+        <BenchmarkDir>$(EnlistmentRoot)ThirdParty\benchmark\</BenchmarkDir>
 
     </PropertyGroup>
 </Project>

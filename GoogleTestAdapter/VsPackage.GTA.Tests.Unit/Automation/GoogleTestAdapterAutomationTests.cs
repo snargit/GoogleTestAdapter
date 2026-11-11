@@ -51,12 +51,13 @@ namespace GoogleTestAdapter.VsPackage.Automation
         }
 
         /// <param name="solutionSettings">whether the solution settings file is used (its working dir does not exist)</param>
-        private GoogleTestAdapterAutomation CreateAutomation(bool initialized = true, bool solutionSettings = true)
+        private GoogleTestAdapterAutomation CreateAutomation(bool initialized = true, bool solutionSettings = true,
+            string additionalTestExecutionParam = "-global")
         {
             var globalRunSettings = new RunSettings
             {
                 TestDiscoveryRegex = "",
-                AdditionalTestExecutionParam = "-global",
+                AdditionalTestExecutionParam = additionalTestExecutionParam,
                 SkipOriginCheck = false
             };
             var mockGlobalRunSettings = new Mock<IGlobalRunSettings>();
@@ -187,7 +188,19 @@ namespace GoogleTestAdapter.VsPackage.Automation
             trust["isOnNetworkDrive"].Should().Be(false);
             trust["isTrusted"].Should().Be(true);
             result["googleTestIndicator"].Should().Be(GoogleTestDiscoverer.IndicatorGoogleTestMarkers);
+            result["testFramework"].Should().Be("GoogleTest");
             ((string)result["pdb"]).Should().EndWith("Tests_gta.pdb");
+            result["wouldBeDiscovered"].Should().Be(true);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void CheckExecutable_GoogleBenchmarkExecutable_WouldBeDiscovered()
+        {
+            var result = Parse(CreateAutomation().CheckExecutable(TestResources.BenchmarkTests_DebugX86));
+
+            result["googleTestIndicator"].Should().Be(GoogleTestDiscoverer.IndicatorGoogleBenchmarkMarkers);
+            result["testFramework"].Should().Be("GoogleBenchmark");
             result["wouldBeDiscovered"].Should().Be(true);
         }
 
@@ -199,6 +212,7 @@ namespace GoogleTestAdapter.VsPackage.Automation
 
             result["exists"].Should().Be(false);
             result["googleTestIndicator"].Should().BeNull();
+            result["testFramework"].Should().BeNull();
             result["wouldBeDiscovered"].Should().Be(false);
         }
 
@@ -251,6 +265,29 @@ namespace GoogleTestAdapter.VsPackage.Automation
             tests.Single(t => (string)t["fullyQualifiedName"] == "FailingTearDown.TearDownTestSuite")["kind"].Should().Be("TearDownTestSuite");
             ((ArrayList)result["discoveryMessages"]).Cast<Dictionary<string, object>>()
                 .Where(m => (string)m["severity"] == "Error").Should().BeEmpty();
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void StartTestDiscovery_BenchmarkTests_BenchmarksWithMetadata()
+        {
+            // unlike Google Test, Google Benchmark rejects unknown flags
+            var automation = CreateAutomation(solutionSettings: false, additionalTestExecutionParam: "");
+
+            var started = Parse(automation.StartTestDiscovery(TestResources.BenchmarkTests_DebugX86));
+            var result = WaitForTestDiscovery(automation, (string)started["discoveryId"]);
+
+            result["status"].Should().Be(TestDiscoveryJobs.Completed, new JavaScriptSerializer().Serialize(result["discoveryMessages"]));
+            var tests = ((ArrayList)result["tests"]).Cast<Dictionary<string, object>>().ToList();
+            tests.Select(t => (string)t["fullyQualifiedName"]).Should().Equal(TestResources.BenchmarksOfBenchmarkTests,
+                new JavaScriptSerializer().Serialize(result["discoveryMessages"]));
+            tests.Should().OnlyContain(t => (string)t["kind"] == "Benchmark");
+            var fixture = tests.Single(t => (string)t["fullyQualifiedName"] == "MyFixture/FixtureMethod");
+            fixture["testClass"].Should().Be("MyFixture");
+            fixture["testGroup"].Should().Be("FixtureMethod");
+            ((string)fixture["codeFilePath"]).Should().EndWith("BenchmarkTests.cpp");
+            var traits = ((ArrayList)fixture["traits"]).Cast<Dictionary<string, object>>().ToList();
+            traits.Should().Contain(t => (string)t["name"] == GoogleBenchmarkConstants.TraitName && (string)t["value"] == GoogleBenchmarkConstants.TraitValue);
         }
 
         [TestMethod]

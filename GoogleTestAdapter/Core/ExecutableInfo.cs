@@ -24,8 +24,11 @@ namespace GoogleTestAdapter
         public bool IsTrusted { get; private set; }
 
         public string TestDiscoveryRegex { get; private set; }
-        /// <summary>One of the GoogleTestDiscoverer.Indicator* constants, null if not a Google Test executable</summary>
+        /// <summary>One of the GoogleTestDiscoverer.Indicator* constants, null if neither a Google Test nor a Google
+        /// Benchmark executable</summary>
         public string GoogleTestIndicator { get; private set; }
+        /// <summary>The test framework of the executable, null if it is not a test executable</summary>
+        public TestFramework? TestFramework { get; private set; }
 
         public string Pdb { get; private set; }
 
@@ -50,6 +53,8 @@ namespace GoogleTestAdapter
             if (info.Exists)
             {
                 info.GoogleTestIndicator = GoogleTestDiscoverer.GetGoogleTestExecutableIndicator(executable, settings.TestDiscoveryRegex, logger);
+                if (info.GoogleTestIndicator != null)
+                    info.TestFramework = GoogleTestDiscoverer.GetTestFramework(executable, info.GoogleTestIndicator, logger);
                 info.Pdb = PdbLocator.FindPdbFile(executable, settings.GetPathExtension(executable), logger);
             }
             return info;

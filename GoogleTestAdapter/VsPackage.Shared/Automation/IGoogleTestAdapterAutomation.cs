@@ -38,9 +38,11 @@ namespace GoogleTestAdapter.VsPackage.Automation
         /// asks GTA for the outputs of the solution's projects only).
         /// </summary>
         /// <returns>"executable", "exists", "isExe", "trust" ("securityZone", "isOnNetworkDrive", "skipOriginCheck",
-        /// "isTrusted"), "googleTestIndicator" (what makes it a Google Test executable: "IndicatorFile",
-        /// "GoogleTestDll", "GoogleTestFunctions", "GoogleTestMarkers", or "TestDiscoveryRegex"; null if it is not one),
-        /// "testDiscoveryRegex", "pdb" (null if not found), and "wouldBeDiscovered"</returns>
+        /// "isTrusted"), "googleTestIndicator" (what makes it a Google Test or Google Benchmark executable:
+        /// "IndicatorFile", "GoogleTestDll", "GoogleTestFunctions", "GoogleTestMarkers", "GoogleBenchmarkDll",
+        /// "GoogleBenchmarkFunctions", "GoogleBenchmarkMarkers", or "TestDiscoveryRegex"; null if it is neither),
+        /// "testFramework" ("GoogleTest" or "GoogleBenchmark"; null if neither), "testDiscoveryRegex", "pdb" (null if
+        /// not found), and "wouldBeDiscovered"</returns>
         string CheckExecutable(string executable);
 
         /// <summary>
@@ -57,8 +59,8 @@ namespace GoogleTestAdapter.VsPackage.Automation
         /// </summary>
         /// <returns>"discoveryId", "status" ("Running", "Completed", "Failed", or "Unknown" for unknown ids),
         /// "executable", "durationInSeconds", "discoveryMessages" (the warnings and errors of the discovery so far),
-        /// and, if completed, "tests": "fullyQualifiedName", "displayName", "kind" ("Test", "TearDownTestSuite", or
-        /// "ExitCode"), "codeFilePath" and "lineNumber" (if known), "namespace", "testClass", "testGroup", "traits"
+        /// and, if completed, "tests": "fullyQualifiedName", "displayName", "kind" ("Test", "TearDownTestSuite",
+        /// "Benchmark", or "ExitCode"), "codeFilePath" and "lineNumber" (if known), "namespace", "testClass", "testGroup", "traits"
         /// ("name", "value"), and "testProperties" (the CTest test properties "workingDirectory", "environment",
         /// "labels", "timeoutInSeconds", and "disabled"; null if there are none)</returns>
         string GetTestDiscoveryResult(string discoveryId);

@@ -6,10 +6,13 @@ This document is the hand-over for developers and coding agents continuing work 
 [Development Knowledge Base](https://github.com/csoltenborn/GoogleTestAdapter/wiki/Development-Knowledge-Base), which
 describes the code base as it was before the fork.
 
-## Status (October 2026)
+## Status (November 2026)
 
 * Versions **0.19.0** and **0.20.0** have been published as pre-releases on GitHub, **0.21.0** as release (see
   `GoogleTestAdapter/VsPackage.GTA/Resources/ReleaseNotes/`).
+* Since 0.21.0 (not released yet): support of Google Benchmark executables (see the README and
+  [Google Benchmark](#google-benchmark) below); executables containing both Google Test tests and benchmarks are out
+  of scope so far (GTA discovers their tests only).
 * Supported: Visual Studio 2017 to 2026, .NET Framework 4.6. Visual Studio 2013/2015 support has been dropped.
 * Known gap: the end-to-end tests (`VsPackage.Tests`, `VsPackage.Tests.Generated`, category `End to end`) compare the
   complete console output of test runs with expected files, which have not been updated for the fork's changes (e.g.
@@ -35,6 +38,7 @@ describes the code base as it was before the fork.
 | `SampleTests/SampleTests.sln` | C++ sample test executables used by GTA's tests; many of their tests **fail, crash, or hang on purpose** |
 | `GoogleTestNuGet/Build.ps1` | Builds the Google Test NuGet packages (`Microsoft.googletest.*`) into `GoogleTestAdapter/Packages/`; run by the build of `Packaging.GTA` if they are missing |
 | `ThirdParty/googletest` | Submodule, Google Test 1.18.0 |
+| `ThirdParty/benchmark` | Submodule, Google Benchmark 1.10.0, compiled into the sample `SampleTests/BenchmarkTests` |
 | `GoogleTestAdapter/Core/Resources/GTA_Traits_*.h` | Trait macros headers for Google Test 1.7.0 to 1.18.0; `GTA_Traits.md` describes how to create and verify them |
 | `NuGetPackages/` | Restored NuGet packages (not under source control) |
 | `out/` | Build output (not under source control) |
@@ -142,7 +146,7 @@ cd out/binaries/GoogleTestAdapter/Release
     VsPackage.GTA.Tests.Unit/GoogleTestAdapter.VsPackage.GTA.Tests.Unit.dll //Parallel
 ```
 
-* As of 0.21.0, all 719 tests pass. Run the suite more than once after changes affecting timing or files: the test
+* All 762 tests pass (0.21.0: 719). Run the suite more than once after changes affecting timing or files: the test
   assemblies run in parallel and share the sample binaries, so tests must never rename or modify sample files (one
   test renaming a sample's .pdb was flaky for exactly this reason).
 * VS 2026's `vstest.console.exe` (`.../18/Professional/...`) runs the tests as well.
@@ -222,8 +226,8 @@ cd out/binaries/GoogleTestAdapter/Release
     adapter does (`CommonFunctions.CreateSettings()`, `InitializeSettings()`).
   * `CheckExecutable(executable)`: `ExecutableInfo` (Core) as `executable`, `exists`, `isExe`, `trust`
     (`securityZone`, `isOnNetworkDrive`, `skipOriginCheck`, `isTrusted`), `googleTestIndicator` (the rule of
-    `GoogleTestDiscoverer.GetGoogleTestExecutableIndicator()` which matched, or null), `testDiscoveryRegex`, `pdb`, and
-    `wouldBeDiscovered`; the executable is not run.
+    `GoogleTestDiscoverer.GetGoogleTestExecutableIndicator()` which matched, or null), `testFramework` (`GoogleTest`,
+    `GoogleBenchmark`, or null), `testDiscoveryRegex`, `pdb`, and `wouldBeDiscovered`; the executable is not run.
   * `StartTestDiscovery(executable)`: `discoveryId`, `executable`. Discovers the tests in the background
     (`Automation/TestDiscoveryJobs.cs`): COM calls arrive on VS's UI thread, and discovery runs the executable, which
     takes up to the discovery timeout. Only executables GTA would discover (`ExecutableInfo.WouldBeDiscovered`) are
@@ -232,7 +236,7 @@ cd out/binaries/GoogleTestAdapter/Release
   * `GetTestDiscoveryResult(discoveryId)`: `status` (`Running`, `Completed`, `Failed` if the discovery reported
     errors, e.g. since the executable could not be run, or `Unknown`), `executable`, `durationInSeconds`,
     `discoveryMessages`, and, if completed, `tests` (`fullyQualifiedName`, `displayName`, `kind` (`Test`,
-    `TearDownTestSuite`, `ExitCode`), `codeFilePath`, `lineNumber`, `namespace`, `testClass`, `testGroup`, `traits`,
+    `TearDownTestSuite`, `Benchmark`, `ExitCode`), `codeFilePath`, `lineNumber`, `namespace`, `testClass`, `testGroup`, `traits`,
     and `testProperties`, the CTest test properties). The latest 32 discoveries are kept.
 
   COM calls arrive on VS's UI thread, so the methods must stay quick. When calling from PowerShell, look up `DTE.Properties`
@@ -262,6 +266,29 @@ cd out/binaries/GoogleTestAdapter/Release
   counted in the meta data's numbers of tests, are attached to the command line running their suite (a suite is run
   completely if only its `TearDownTestSuite` test is selected), and are kept with their suite by
   `ParallelTestRunner`.
+* <a name="google-benchmark"></a>**Google Benchmark** (sample `SampleTests/BenchmarkTests`, which compiles Google
+  Benchmark's sources from the submodule; its benchmarks crash or hang only if environment variable
+  `GTA_BENCHMARK_CRASH` or `GTA_BENCHMARK_HANG` is set):
+  * Detection (`GoogleTestDiscoverer.FindTestFrameworkIndicator()`): Google Test's indicators are checked first, then
+    Google Benchmark's DLL names, imported functions (`benchmark::internal::`, `benchmark::State::`), and the names of
+    its flags (`GoogleBenchmarkConstants.GoogleBenchmarkExecutableMarkers`). `GetTestFramework()` inspects executables
+    made test executables by an indicator file or the discovery regex.
+  * Discovery (`TestCaseFactory.CreateBenchmarkTestCases()`): `--benchmark_list_tests` prints one name per line, in
+    the order the benchmarks run. `BenchmarkLocationResolver` looks up the part of the name before the first `/` as
+    function, or `<fixture>_<method>_Benchmark::BenchmarkCase` for fixtures (`BenchmarkNames`); in Release builds,
+    `/OPT:ICF` may fold benchmark functions (wrong line) and captures may be inlined (no location). Benchmarks are
+    marked by `TestCaseMetaDataProperty.IsBenchmark`, which survives the round trip through VS.
+  * Execution (`Runners/SequentialTestRunner.Benchmarks.cs`): `--benchmark_filter` is a `std::regex` with the
+    *extended* grammar, searched (not matched): GTA passes `^(name1|name2)$`, escaping only `\.[](){}*+?|^$` -
+    escaping other characters (e.g. `\/`, `\<`) is invalid with MSVC. Invalid or non-matching filters still exit with 0.
+    Results come from `--benchmark_out=<file> --benchmark_out_format=json` (`TestResults/BenchmarkJsonParser.cs`:
+    counters are top-level keys of a run, numbers may be `Infinity`/`NaN`, the file is truncated after a crash).
+    Google Benchmark writes and flushes all runs of a benchmark (iterations and aggregates) when it has finished, so a
+    benchmark is reported once the next one appears in the file (polled every 100 ms), which also tells which
+    benchmark is running for timeouts. After a crash, the benchmarks are listed again with the same filter to find the
+    first one without results. `--benchmark_dry_run` exists since Google Benchmark 1.9.1; executables exit with 1 on
+    unknown flags, so GTA checks for the flag's name in the executable (and its benchmark DLLs) first.
+    `ParallelTestRunner` runs the benchmark executables after the tests.
 * **Test Explorer hierarchy:** `TestAdapter/DataConversionExtensions.cs` sets the `TestCase.Hierarchy` property
   (project, namespace, class, test group); instances of typed and parameterized tests share class and group.
 * **Code coverage** (`VsPackage.Shared/Settings/CodeCoverageRunSettings.cs`): VS only instruments the test

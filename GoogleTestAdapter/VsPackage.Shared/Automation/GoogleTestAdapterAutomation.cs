@@ -95,6 +95,7 @@ namespace GoogleTestAdapter.VsPackage.Automation
                         { "isTrusted", info.IsTrusted }
                     });
                     result.Add("googleTestIndicator", info.GoogleTestIndicator);
+                    result.Add("testFramework", info.TestFramework?.ToString());
                     result.Add("testDiscoveryRegex", info.TestDiscoveryRegex);
                     result.Add("pdb", info.Pdb);
                     result.Add("wouldBeDiscovered", info.WouldBeDiscovered);
@@ -151,7 +152,7 @@ namespace GoogleTestAdapter.VsPackage.Automation
                     if (!info.WouldBeDiscovered)
                     {
                         logger.LogError($"{_name} would not discover the tests of '{job.Executable}' (see CheckExecutable()): " +
-                                        $"exists: {info.Exists}, is .exe: {info.IsExe}, trusted: {info.IsTrusted}, Google Test executable: {info.GoogleTestIndicator != null}");
+                                        $"exists: {info.Exists}, is .exe: {info.IsExe}, trusted: {info.IsTrusted}, Google Test or Google Benchmark executable: {info.GoogleTestIndicator != null}");
                         return;
                     }
 
@@ -176,7 +177,7 @@ namespace GoogleTestAdapter.VsPackage.Automation
             {
                 { "fullyQualifiedName", testCase.FullyQualifiedName },
                 { "displayName", testCase.DisplayName },
-                { "kind", testCase.IsExitCodeTestCase ? "ExitCode" : testCase.IsTearDownTestSuiteTestCase ? "TearDownTestSuite" : "Test" },
+                { "kind", testCase.IsExitCodeTestCase ? "ExitCode" : testCase.IsTearDownTestSuiteTestCase ? "TearDownTestSuite" : testCase.IsBenchmark ? "Benchmark" : "Test" },
                 { "codeFilePath", string.IsNullOrEmpty(testCase.CodeFilePath) ? null : testCase.CodeFilePath },
                 { "lineNumber", testCase.LineNumber },
                 { "namespace", testCase.Namespace },

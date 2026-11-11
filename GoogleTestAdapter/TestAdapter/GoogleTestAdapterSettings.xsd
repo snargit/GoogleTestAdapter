@@ -46,6 +46,7 @@
           </xsd:restriction>
         </xsd:simpleType>
       </xsd:element>
+      <xsd:element name="BenchmarkDryRun"              minOccurs="0" type="xsd:boolean" />
       <xsd:element name="CatchExceptions"              minOccurs="0" type="xsd:boolean" />
       <xsd:element name="BreakOnFailure"               minOccurs="0" type="xsd:boolean" />
       <xsd:element name="RunDisabledTests"             minOccurs="0" type="xsd:boolean" />

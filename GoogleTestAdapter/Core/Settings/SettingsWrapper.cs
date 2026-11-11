@@ -509,6 +509,15 @@ namespace GoogleTestAdapter.Settings
                 return timeout < 0 ? OptionTestTimeoutInSecondsDefaultValue : timeout;
             }
         }
+
+
+        public const string OptionBenchmarkDryRun = "Dry runs of benchmarks";
+        public const string OptionBenchmarkDryRunDescription =
+            "Runs the benchmarks of Google Benchmark executables with --benchmark_dry_run, i.e., each benchmark for one iteration and one repetition: this checks that the benchmarks work, but does not measure them. " +
+            "Disable for real measurements. Requires Google Benchmark 1.9.1 or later; the benchmarks of executables built with older versions are always run completely.";
+        public const bool OptionBenchmarkDryRunDefaultValue = true;
+
+        public virtual bool BenchmarkDryRun => _currentSettings.BenchmarkDryRun ?? OptionBenchmarkDryRunDefaultValue;
         
 
         public const string OptionAdditionalTestExecutionParams = "Additional test execution parameters";

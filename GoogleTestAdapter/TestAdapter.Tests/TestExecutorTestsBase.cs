@@ -182,6 +182,38 @@ namespace GoogleTestAdapter.TestAdapter
 
         [TestMethod]
         [TestCategory(Integration)]
+        public virtual void RunTests_BenchmarkTests_CorrectTestResults()
+        {
+            // BM_Error fails, BM_Skip is skipped
+            int nrOfBenchmarks = TestResources.BenchmarksOfBenchmarkTests.Length;
+            RunAndVerifyTests(TestResources.BenchmarkTests_DebugX86, nrOfBenchmarks - 2, 1, 0, 1);
+
+            MockFrameworkHandle.Verify(h => h.RecordResult(It.Is<VsTestResult>(tr =>
+                    tr.TestCase.FullyQualifiedName == "BM_Error" && tr.Outcome == VsTestOutcome.Failed &&
+                    tr.ErrorMessage.Contains("Benchmark error"))),
+                Times.Once);
+            MockFrameworkHandle.Verify(h => h.RecordResult(It.Is<VsTestResult>(tr =>
+                    tr.TestCase.FullyQualifiedName == "BM_CountersAndLabel" && tr.Outcome == VsTestOutcome.Passed &&
+                    tr.ErrorMessage.StartsWith(BenchmarkTestResults.DryRunPrefix) &&
+                    tr.Messages.Any(m => m.Category == Microsoft.VisualStudio.TestPlatform.ObjectModel.TestResultMessage.StandardOutCategory
+                                         && m.Text.Contains("Items: 42")))),
+                Times.Once);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public virtual void RunTests_TestsAndBenchmarks_AllAreRun()
+        {
+            TestExecutor executor = new TestExecutor(TestEnvironment.Logger, TestEnvironment.Options, MockDebuggerAttacher.Object);
+            executor.RunTests(new[] { TestResources.Utf8Tests_DebugX86, TestResources.BenchmarkTests_DebugX86 }, MockRunContext.Object, MockFrameworkHandle.Object);
+
+            MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
+            int nrOfBenchmarks = TestResources.BenchmarksOfBenchmarkTests.Length;
+            CheckMockInvocations(6 + nrOfBenchmarks - 2, 1 + 1, 0, 1, 0);
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
         public virtual void RunTests_Utf8Tests_CorrectTestResults()
         {
             RunAndVerifyTests(TestResources.Utf8Tests_DebugX86, 6, 1, 0);

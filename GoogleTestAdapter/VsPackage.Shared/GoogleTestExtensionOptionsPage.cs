@@ -273,6 +273,7 @@ namespace GoogleTestAdapter.VsPackage
                 EnvironmentVariables = _testExecutionOptions.EnvironmentVariables,
                 UseCTestTestProperties = _testExecutionOptions.UseCTestTestProperties,
                 TestTimeoutInSeconds = _testExecutionOptions.TestTimeoutInSeconds,
+                BenchmarkDryRun = _testExecutionOptions.BenchmarkDryRun,
                 SourcePathMapping = _testExecutionOptions.SourcePathMapping,
                 MapOnlyMissingSourcePaths = _testExecutionOptions.MapOnlyMissingSourcePaths,
                 AdditionalTestExecutionParam = _testExecutionOptions.AdditionalTestExecutionParams,

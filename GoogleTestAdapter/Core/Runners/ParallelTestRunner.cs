@@ -20,6 +20,7 @@ namespace GoogleTestAdapter.Runners
         private readonly SettingsWrapper _settings;
         private readonly List<ITestRunner> _testRunners = new List<ITestRunner>();
         private readonly SchedulingAnalyzer _schedulingAnalyzer;
+        private bool _canceled;
 
 
         public ParallelTestRunner(ITestFrameworkReporter reporter, ILogger logger, SettingsWrapper settings, SchedulingAnalyzer schedulingAnalyzer)
@@ -31,19 +32,41 @@ namespace GoogleTestAdapter.Runners
         }
 
 
-        public void RunTests(IEnumerable<TestCase> testCasesToRun, bool isBeingDebugged, 
+        public void RunTests(IEnumerable<TestCase> testCasesToRun, bool isBeingDebugged,
             IDebuggedProcessExecutorFactory processExecutorFactory)
         {
+            // benchmarks are run on their own after the tests, since concurrently running tests would affect their
+            // measurements (benchmark executables have benchmarks and the exit code test case only)
+            TestCase[] testCasesToRunAsArray = testCasesToRun as TestCase[] ?? testCasesToRun.ToArray();
+            var benchmarkExecutables = new HashSet<string>(testCasesToRunAsArray.Where(tc => tc.IsBenchmark).Select(tc => tc.Source));
+            List<TestCase> benchmarks = testCasesToRunAsArray.Where(tc => benchmarkExecutables.Contains(tc.Source)).ToList();
+            List<TestCase> tests = testCasesToRunAsArray.Where(tc => !benchmarkExecutables.Contains(tc.Source)).ToList();
+
             List<Thread> threads;
             lock (this)
             {
                 threads = new List<Thread>();
-                RunTests(testCasesToRun, threads, isBeingDebugged, processExecutorFactory);
+                if (tests.Count > 0)
+                    RunTests(tests, threads, isBeingDebugged, processExecutorFactory);
             }
 
             foreach (Thread thread in threads)
             {
                 thread.Join();
+            }
+
+            if (benchmarks.Count > 0)
+            {
+                PreparingTestRunner benchmarkRunner;
+                lock (this)
+                {
+                    if (_canceled)
+                        return;
+                    _logger.DebugInfo($"Running {benchmarks.Count} benchmark(s) after the tests");
+                    benchmarkRunner = new PreparingTestRunner(_testRunners.Count, _frameworkReporter, _logger, _settings.Clone(), _schedulingAnalyzer);
+                    _testRunners.Add(benchmarkRunner);
+                }
+                benchmarkRunner.RunTests(benchmarks, isBeingDebugged, processExecutorFactory);
             }
 
             // ReSharper disable once InconsistentlySynchronizedField
@@ -59,6 +82,7 @@ namespace GoogleTestAdapter.Runners
         {
             lock (this)
             {
+                _canceled = true;
                 foreach (ITestRunner runner in _testRunners)
                 {
                     runner.Cancel();

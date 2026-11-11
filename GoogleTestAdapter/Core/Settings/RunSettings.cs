@@ -46,6 +46,9 @@ namespace GoogleTestAdapter.Settings
         public virtual int? TestTimeoutInSeconds { get; set; }
         public bool ShouldSerializeTestTimeoutInSeconds() { return TestTimeoutInSeconds != null; }
 
+        public virtual bool? BenchmarkDryRun { get; set; }
+        public bool ShouldSerializeBenchmarkDryRun() { return BenchmarkDryRun != null; }
+
         public virtual string SourcePathMapping { get; set; }
         public bool ShouldSerializeSourcePathMapping() { return SourcePathMapping != null; }
 

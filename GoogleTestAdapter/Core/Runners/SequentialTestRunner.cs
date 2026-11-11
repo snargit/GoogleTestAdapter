@@ -17,7 +17,7 @@ using GoogleTestAdapter.Settings;
 
 namespace GoogleTestAdapter.Runners
 {
-    public class SequentialTestRunner : ITestRunner
+    public partial class SequentialTestRunner : ITestRunner
     {
         private volatile bool _canceled;
         private readonly object _cancelLock = new object();
@@ -152,6 +152,13 @@ namespace GoogleTestAdapter.Runners
             IEnumerable<TestCase> testCasesToRun, string userParameters, IDictionary<string, string> environmentVariables,
             bool isBeingDebugged, IDebuggedProcessExecutorFactory processExecutorFactory)
         {
+            if (IsBenchmarkExecutable(executable, testCasesToRun))
+            {
+                RunBenchmarksFromExecutable(executable, workingDir, testCasesToRun.ToList(), userParameters,
+                    environmentVariables, isBeingDebugged, processExecutorFactory);
+                return;
+            }
+
             string resultXmlFile = Path.GetTempFileName();
             var serializer = new TestDurationSerializer();
 
@@ -276,24 +283,8 @@ namespace GoogleTestAdapter.Runners
         private List<string> RunTestExecutable(string executable, string workingDir, CommandLineGenerator.Args arguments, IDictionary<string, string> environmentVariables, bool isBeingDebugged, IDebuggedProcessExecutorFactory processExecutorFactory,
             StreamingStandardOutputTestResultParser streamingParser)
         {
-            string pathExtension = _settings.GetPathExtension(executable);
-            if (!string.IsNullOrEmpty(pathExtension))
-            {
-                if (environmentVariables.ContainsKey("PATH") && !string.IsNullOrEmpty(environmentVariables["PATH"]))
-                {
-                    _logger.DebugInfo($"{_threadName}Executable {executable}: Both a path extension and a PATH environment variable have been provided, appending the path extension to the PATH environment variable");
-                    environmentVariables = new Dictionary<string, string>(environmentVariables)
-                    {
-                        ["PATH"] = environmentVariables["PATH"] + ";" + pathExtension
-                    };
-                    pathExtension = null;
-                }
-            }
-
-            bool isTestOutputAvailable = !isBeingDebugged || _settings.DebuggerKind > DebuggerKind.VsTestFramework;
-            bool printTestOutput = _settings.PrintTestOutput &&
-                                   !_settings.ParallelTestExecution &&
-                                   isTestOutputAvailable;
+            string pathExtension = GetPathExtension(executable, ref environmentVariables);
+            bool isTestOutputAvailable = IsTestOutputAvailable(isBeingDebugged);
 
             void OnNewOutputLine(string line)
             {
@@ -308,22 +299,7 @@ namespace GoogleTestAdapter.Runners
                 }
             }
 
-            lock (_cancelLock)
-            {
-                _processExecutor = isBeingDebugged
-                    ? _settings.DebuggerKind == DebuggerKind.VsTestFramework
-                        ? processExecutorFactory.CreateFrameworkDebuggingExecutor(printTestOutput, _logger)
-                        : processExecutorFactory.CreateNativeDebuggingExecutor(
-                            GetDebuggerEngine(_settings.DebuggerKind), printTestOutput, _logger)
-                    : processExecutorFactory.CreateExecutor(printTestOutput, _logger);
-
-                // execution might have been canceled after the check in RunTestsFromExecutable(), i.e., Cancel() has
-                // been called on the previous executor; the executable is then not started at all
-                if (_canceled)
-                {
-                    _processExecutor.Cancel();
-                }
-            }
+            CreateProcessExecutor(isBeingDebugged, processExecutorFactory);
             int exitCode;
             using (StartTimeoutWatchdog(executable, arguments.TestCases, isBeingDebugged, isTestOutputAvailable, streamingParser))
             {
@@ -346,6 +322,53 @@ namespace GoogleTestAdapter.Runners
                     _logger.DebugWarning($"{_threadName}TestCase already in analyzer: {result.TestCase.FullyQualifiedName}");
             }
             return consoleOutput;
+        }
+
+        // a path extension is appended to the PATH of the environment variables, if they define one
+        private string GetPathExtension(string executable, ref IDictionary<string, string> environmentVariables)
+        {
+            string pathExtension = _settings.GetPathExtension(executable);
+            if (!string.IsNullOrEmpty(pathExtension))
+            {
+                if (environmentVariables.ContainsKey("PATH") && !string.IsNullOrEmpty(environmentVariables["PATH"]))
+                {
+                    _logger.DebugInfo($"{_threadName}Executable {executable}: Both a path extension and a PATH environment variable have been provided, appending the path extension to the PATH environment variable");
+                    environmentVariables = new Dictionary<string, string>(environmentVariables)
+                    {
+                        ["PATH"] = environmentVariables["PATH"] + ";" + pathExtension
+                    };
+                    pathExtension = null;
+                }
+            }
+            return pathExtension;
+        }
+
+        private bool IsTestOutputAvailable(bool isBeingDebugged)
+        {
+            return !isBeingDebugged || _settings.DebuggerKind > DebuggerKind.VsTestFramework;
+        }
+
+        private void CreateProcessExecutor(bool isBeingDebugged, IDebuggedProcessExecutorFactory processExecutorFactory)
+        {
+            bool printTestOutput = _settings.PrintTestOutput &&
+                                   !_settings.ParallelTestExecution &&
+                                   IsTestOutputAvailable(isBeingDebugged);
+            lock (_cancelLock)
+            {
+                _processExecutor = isBeingDebugged
+                    ? _settings.DebuggerKind == DebuggerKind.VsTestFramework
+                        ? processExecutorFactory.CreateFrameworkDebuggingExecutor(printTestOutput, _logger)
+                        : processExecutorFactory.CreateNativeDebuggingExecutor(
+                            GetDebuggerEngine(_settings.DebuggerKind), printTestOutput, _logger)
+                    : processExecutorFactory.CreateExecutor(printTestOutput, _logger);
+
+                // execution might have been canceled after the check in RunTestsFromExecutable(), i.e., Cancel() has
+                // been called on the previous executor; the executable is then not started at all
+                if (_canceled)
+                {
+                    _processExecutor.Cancel();
+                }
+            }
         }
 
         public static readonly TimeSpan TimeoutWatchdogInterval = TimeSpan.FromMilliseconds(100);

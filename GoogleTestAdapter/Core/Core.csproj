@@ -77,6 +77,8 @@
     <Compile Include="Model\TestProperty.cs" />
     <Compile Include="ProcessExecution\DebuggerKind.cs" />
     <Compile Include="Runners\ExecutableResult.cs" />
+    <Compile Include="TestResults\BenchmarkJsonParser.cs" />
+    <Compile Include="TestResults\BenchmarkTestResults.cs" />
     <Compile Include="Runners\TestResultCollector.cs" />
     <Compile Include="Scheduling\SchedulingAnalyzer.cs" />
     <Compile Include="Settings\HelperFilesCache.cs" />
@@ -108,6 +110,8 @@
     <Compile Include="Runners\ITestRunner.cs" />
     <Compile Include="Runners\ParallelTestRunner.cs" />
     <Compile Include="Runners\PreparingTestRunner.cs" />
+    <Compile Include="Runners\BenchmarkCommandLineGenerator.cs" />
+    <Compile Include="Runners\SequentialTestRunner.Benchmarks.cs" />
     <Compile Include="Runners\SequentialTestRunner.cs" />
     <Compile Include="Scheduling\DurationBasedTestsSplitter.cs" />
     <Compile Include="Scheduling\ITestsSplitter.cs" />

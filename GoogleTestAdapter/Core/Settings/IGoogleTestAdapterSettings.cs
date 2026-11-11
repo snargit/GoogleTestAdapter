@@ -40,6 +40,7 @@ namespace GoogleTestAdapter.Settings
         string EnvironmentVariables { get; set; }
         bool? UseCTestTestProperties { get; set; }
         int? TestTimeoutInSeconds { get; set; }
+        bool? BenchmarkDryRun { get; set; }
         string SourcePathMapping { get; set; }
         bool? MapOnlyMissingSourcePaths { get; set; }
         string BatchForTestSetup { get; set; }
@@ -95,6 +96,7 @@ namespace GoogleTestAdapter.Settings
             self.EnvironmentVariables = self.EnvironmentVariables ?? other.EnvironmentVariables;
             self.UseCTestTestProperties = self.UseCTestTestProperties ?? other.UseCTestTestProperties;
             self.TestTimeoutInSeconds = self.TestTimeoutInSeconds ?? other.TestTimeoutInSeconds;
+            self.BenchmarkDryRun = self.BenchmarkDryRun ?? other.BenchmarkDryRun;
             self.SourcePathMapping = self.SourcePathMapping ?? other.SourcePathMapping;
             self.MapOnlyMissingSourcePaths = self.MapOnlyMissingSourcePaths ?? other.MapOnlyMissingSourcePaths;
             self.BatchForTestSetup = self.BatchForTestSetup ?? other.BatchForTestSetup;

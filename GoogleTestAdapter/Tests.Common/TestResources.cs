@@ -57,6 +57,17 @@ namespace GoogleTestAdapter.Tests.Common
         public const string BenchmarkTests_DebugX86 = SampleTestsBuildDir + @"Debug\BenchmarkTests_gta.exe";
         public const string BenchmarkTests_ReleaseX64 = SampleTestsBuildDir + @"Release-x64\BenchmarkTests_gta.exe";
 
+        // the benchmarks of BenchmarkTests in the order Google Benchmark lists them
+        public const string CustomNameBenchmark = @"BM_Custom.name(1+2)*[3]{4}|^$\";
+
+        public static readonly string[] BenchmarksOfBenchmarkTests =
+        {
+            "BM_Simple", CustomNameBenchmark, "BM_Args/8", "BM_Args/64", "BM_NamedArgs/size:100/inserts:128",
+            "BM_Capture/answer", "BM_Template<int>", "MyFixture/FixtureMethod", "benchmarks::BM_InNamespace",
+            "BM_Threads/threads:2", "BM_RealTime/real_time", "BM_CountersAndLabel", "BM_Error", "BM_Skip", "BM_Hang",
+            "BM_Crash", "BM_AfterCrash"
+        };
+
         public const string CrashingTests_DebugX86 = SampleTestsBuildDir + @"Debug\CrashingTests_gta.exe";
         public const string CrashingTests_ReleaseX86 = SampleTestsBuildDir + @"Release\CrashingTests_gta.exe";
         public const string CrashingTests_DebugX64 = SampleTestsBuildDir + @"Debug-x64\CrashingTests_gta.exe";

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using GoogleTestAdapter.Common;
 using GoogleTestAdapter.DiaResolver;
 using GoogleTestAdapter.Settings;
@@ -78,11 +79,16 @@ namespace GoogleTestAdapter.TestCases
             return FindFunction(parts[0], isFixtureClass: false);
         }
 
+        // e.g. "ns::BM_Foo<std::array<int, 3>>"; custom names (Benchmark::Name()) might be anything
+        private static readonly Regex QualifiedNameRegex = new Regex(@"^[\w:<>, *&]+$", RegexOptions.Compiled);
+
         private TestCaseLocation FindFunction(string name, bool isFixtureClass)
         {
             string qualifiedName = isFixtureClass ? name + "::" + GoogleBenchmarkConstants.FixtureMethod : name;
             if (_locationsByPrefix.TryGetValue(qualifiedName, out TestCaseLocation location))
                 return location;
+            if (!QualifiedNameRegex.IsMatch(qualifiedName))
+                return null;
 
             try
             {

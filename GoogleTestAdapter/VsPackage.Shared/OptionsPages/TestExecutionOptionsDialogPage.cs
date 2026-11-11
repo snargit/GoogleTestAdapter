@@ -137,6 +137,16 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         private int _testTimeoutInSeconds = SettingsWrapper.OptionTestTimeoutInSecondsDefaultValue;
 
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
+        [DisplayName(SettingsWrapper.OptionBenchmarkDryRun)]
+        [Description(SettingsWrapper.OptionBenchmarkDryRunDescription)]
+        public bool BenchmarkDryRun
+        {
+            get => _benchmarkDryRun;
+            set => SetAndNotify(ref _benchmarkDryRun, value);
+        }
+        private bool _benchmarkDryRun = SettingsWrapper.OptionBenchmarkDryRunDefaultValue;
+
+        [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionSourcePathMapping)]
         [Description(SettingsWrapper.OptionSourcePathMappingDescription)]
         public string SourcePathMapping

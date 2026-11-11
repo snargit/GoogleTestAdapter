@@ -753,13 +753,6 @@ namespace GoogleTestAdapter
             GoogleTestDiscoverer.GetTestFramework(TestResources.BenchmarkTests_DebugX86, regexIndicator, TestEnvironment.Logger).Should().Be(TestFramework.GoogleBenchmark);
         }
 
-        private static readonly string[] BenchmarksOfBenchmarkTests =
-        {
-            "BM_Simple", "BM_Args/8", "BM_Args/64", "BM_NamedArgs/size:100/inserts:128", "BM_Capture/answer",
-            "BM_Template<int>", "MyFixture/FixtureMethod", "benchmarks::BM_InNamespace", "BM_Threads/threads:2",
-            "BM_RealTime/real_time", "BM_CountersAndLabel", "BM_Error", "BM_Skip", "BM_Crash"
-        };
-
         [TestMethod]
         [TestCategory(Integration)]
         public void GetTestsFromExecutable_BenchmarkTestsDebugX86_FindsBenchmarksWithLocations()
@@ -771,39 +764,44 @@ namespace GoogleTestAdapter
             MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
             MockLogger.Verify(l => l.DebugError(It.IsAny<string>()), Times.Never);
             MockLogger.Verify(l => l.LogWarning(It.IsAny<string>()), Times.Never);
-            MockLogger.Verify(l => l.DebugWarning(It.IsAny<string>()), Times.Never);
-            testCases.Select(tc => tc.FullyQualifiedName).Should().Equal(BenchmarksOfBenchmarkTests);
-            foreach (TestCase testCase in testCases)
+            // benchmarks with custom names have no location
+            MockLogger.Verify(l => l.DebugWarning(It.IsAny<string>()), Times.Once);
+            MockLogger.Verify(l => l.DebugWarning(It.Is<string>(s => s.Contains(TestResources.CustomNameBenchmark))), Times.Once);
+            testCases.Select(tc => tc.FullyQualifiedName).Should().Equal(TestResources.BenchmarksOfBenchmarkTests);
+            TestCase customName = testCases.Single(tc => tc.FullyQualifiedName == TestResources.CustomNameBenchmark);
+            customName.CodeFilePath.Should().BeEmpty();
+            customName.LineNumber.Should().Be(0);
+            foreach (TestCase testCase in testCases.Where(tc => tc != customName))
             {
-                testCase.DisplayName.Should().Be(testCase.FullyQualifiedName);
                 testCase.IsBenchmark.Should().BeTrue(testCase.FullyQualifiedName);
                 testCase.IsExitCodeTestCase.Should().BeFalse(testCase.FullyQualifiedName);
                 testCase.Traits.Should().Contain(t => t.Name == GoogleBenchmarkConstants.TraitName && t.Value == GoogleBenchmarkConstants.TraitValue, testCase.FullyQualifiedName);
+                testCase.DisplayName.Should().Be(testCase.FullyQualifiedName);
                 testCase.CodeFilePath.Should().EndWithEquivalent("BenchmarkTests.cpp", testCase.FullyQualifiedName);
                 testCase.LineNumber.Should().BeGreaterThan(0, testCase.FullyQualifiedName);
             }
 
             TestCase simple = testCases.Single(tc => tc.FullyQualifiedName == "BM_Simple");
-            simple.LineNumber.Should().Be(10);
+            simple.LineNumber.Should().Be(12);
             simple.Namespace.Should().Be("");
             simple.TestClass.Should().Be("BM_Simple");
 
-            testCases.Single(tc => tc.FullyQualifiedName == "BM_Args/64").LineNumber.Should().Be(16);
+            testCases.Single(tc => tc.FullyQualifiedName == "BM_Args/64").LineNumber.Should().Be(20);
             testCases.Single(tc => tc.FullyQualifiedName == "BM_Args/64").Properties.OfType<TestCaseMetaDataProperty>().Single()
                 .NrOfTestCasesInSuite.Should().Be(2);
 
             TestCase template = testCases.Single(tc => tc.FullyQualifiedName == "BM_Template<int>");
-            template.LineNumber.Should().Be(35);
+            template.LineNumber.Should().Be(39);
             template.TestClass.Should().Be("BM_Template");
             template.TestGroup.Should().Be("BM_Template<int>");
 
             TestCase fixture = testCases.Single(tc => tc.FullyQualifiedName == "MyFixture/FixtureMethod");
-            fixture.LineNumber.Should().Be(42);
+            fixture.LineNumber.Should().Be(46);
             fixture.TestClass.Should().Be("MyFixture");
             fixture.TestGroup.Should().Be("FixtureMethod");
 
             TestCase namespaced = testCases.Single(tc => tc.FullyQualifiedName == "benchmarks::BM_InNamespace");
-            namespaced.LineNumber.Should().Be(48);
+            namespaced.LineNumber.Should().Be(52);
             namespaced.Namespace.Should().Be("benchmarks");
             namespaced.TestClass.Should().Be("BM_InNamespace");
         }
@@ -817,10 +815,10 @@ namespace GoogleTestAdapter
             IList<TestCase> testCases = new GoogleTestDiscoverer(TestEnvironment.Logger, TestEnvironment.Options).GetTestsFromExecutable(TestResources.BenchmarkTests_ReleaseX64);
 
             MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
-            testCases.Select(tc => tc.FullyQualifiedName).Should().Equal(BenchmarksOfBenchmarkTests);
+            testCases.Select(tc => tc.FullyQualifiedName).Should().Equal(TestResources.BenchmarksOfBenchmarkTests);
             testCases.Should().OnlyContain(tc => tc.IsBenchmark);
             // the linker might inline or fold the functions of benchmarks
-            testCases.Single(tc => tc.FullyQualifiedName == "MyFixture/FixtureMethod").LineNumber.Should().Be(42);
+            testCases.Single(tc => tc.FullyQualifiedName == "MyFixture/FixtureMethod").LineNumber.Should().Be(46);
         }
 
         [TestMethod]
@@ -833,7 +831,7 @@ namespace GoogleTestAdapter
 
             MockLogger.Verify(l => l.LogError(It.IsAny<string>()), Times.Never);
             MockLogger.Verify(l => l.LogWarning(It.IsAny<string>()), Times.Never);
-            testCases.Select(tc => tc.FullyQualifiedName).Should().Equal(BenchmarksOfBenchmarkTests);
+            testCases.Select(tc => tc.FullyQualifiedName).Should().Equal(TestResources.BenchmarksOfBenchmarkTests);
             testCases.Should().OnlyContain(tc => tc.LineNumber == 0 && tc.Namespace == null);
         }
 
@@ -845,7 +843,7 @@ namespace GoogleTestAdapter
 
             IList<TestCase> testCases = new GoogleTestDiscoverer(TestEnvironment.Logger, TestEnvironment.Options).GetTestsFromExecutable(TestResources.BenchmarkTests_DebugX86);
 
-            testCases.Should().HaveCount(BenchmarksOfBenchmarkTests.Length + 1);
+            testCases.Should().HaveCount(TestResources.BenchmarksOfBenchmarkTests.Length + 1);
             testCases.Last().IsExitCodeTestCase.Should().BeTrue();
             testCases.Last().CodeFilePath.Should().EndWithEquivalent("BenchmarkTests.cpp");
         }

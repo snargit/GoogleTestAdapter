@@ -88,7 +88,7 @@ namespace GoogleTestAdapter.Runners
                 _logger.DebugInfo($"{_threadName}Collected {nrOfCollectedTestResults} test results from console output");
         }
 
-        private void CreateMissingResults(TestCase[] testCases, TestCase crashedTestCase, List<TestResult> testResults)
+        public void CreateMissingResults(TestCase[] testCases, TestCase crashedTestCase, List<TestResult> testResults)
         {
             var errorMessage = $"reason is probably a crash of test {crashedTestCase.DisplayName}";
             var errorStackTrace = ErrorMessageParser.CreateStackTraceEntry("crash suspect",
@@ -100,7 +100,7 @@ namespace GoogleTestAdapter.Runners
                 _logger.DebugInfo($"{_threadName}Created {testCases.Length} test results for tests which were neither found in result XML file nor in console output");
         }
 
-        private void ReportSuspiciousTestCases(TestCase[] testCases, List<TestResult> testResults)
+        public void ReportSuspiciousTestCases(TestCase[] testCases, List<TestResult> testResults)
         {
             string causesAsString = $" - possible causes:{Environment.NewLine}{string.Join(Environment.NewLine, TestsNotRunCauses.Select(s => $"- {s}"))}";
             string testCasesAsString = string.Join(Environment.NewLine, testCases.Select(tc => tc.DisplayName));

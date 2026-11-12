@@ -8,11 +8,11 @@ describes the code base as it was before the fork.
 
 ## Status (November 2026)
 
-* Versions **0.19.0** and **0.20.0** have been published as pre-releases on GitHub, **0.21.0** as release (see
-  `GoogleTestAdapter/VsPackage.GTA/Resources/ReleaseNotes/`).
-* Since 0.21.0 (not released yet): support of Google Benchmark executables (see the README and
-  [Google Benchmark](#google-benchmark) below); executables containing both Google Test tests and benchmarks are out
-  of scope so far (GTA discovers their tests only).
+* Versions **0.19.0** and **0.20.0** have been published as pre-releases on GitHub, **0.21.0** and **0.22.0** as
+  releases (see `GoogleTestAdapter/VsPackage.GTA/Resources/ReleaseNotes/`).
+* Since 0.22.0: support of Google Benchmark executables (see the README and [Google Benchmark](#google-benchmark)
+  below); executables containing both Google Test tests and benchmarks are out of scope so far (GTA discovers their
+  tests only).
 * Supported: Visual Studio 2017 to 2026, .NET Framework 4.6. Visual Studio 2013/2015 support has been dropped.
 * Known gap: the end-to-end tests (`VsPackage.Tests`, `VsPackage.Tests.Generated`, category `End to end`) compare the
   complete console output of test runs with expected files, which have not been updated for the fork's changes (e.g.
@@ -146,7 +146,7 @@ cd out/binaries/GoogleTestAdapter/Release
     VsPackage.GTA.Tests.Unit/GoogleTestAdapter.VsPackage.GTA.Tests.Unit.dll //Parallel
 ```
 
-* All 762 tests pass (0.21.0: 719). Run the suite more than once after changes affecting timing or files: the test
+* As of 0.22.0, all 762 tests pass. Run the suite more than once after changes affecting timing or files: the test
   assemblies run in parallel and share the sample binaries, so tests must never rename or modify sample files (one
   test renaming a sample's .pdb was flaky for exactly this reason).
 * VS 2026's `vstest.console.exe` (`.../18/Professional/...`) runs the tests as well.
@@ -165,10 +165,10 @@ cd out/binaries/GoogleTestAdapter/Release
 2. Stamp the version for the build, build, and revert the stamp:
    ```bash
    cd GoogleTestAdapter
-   powershell -NoProfile -ExecutionPolicy Bypass -File SetVersion.ps1 0.21.0.0
+   powershell -NoProfile -ExecutionPolicy Bypass -File SetVersion.ps1 0.22.0.0
    # build as above
    git checkout -- '*/Properties/AssemblyInfo.cs' Packaging.TAfGT/source.extension.vsixmanifest ProjectTemplates/Test/GoogleTest/GoogleTest.vstemplate
-   sed -i 's#Version="0.21.0.0" Language#Version="0.1.0.0" Language#' Packaging.GTA/source.extension.vsixmanifest
+   sed -i 's#Version="0.22.0.0" Language#Version="0.1.0.0" Language#' Packaging.GTA/source.extension.vsixmanifest
    ```
    The GTA vsixmanifest has intentional changes, so only its version is reverted.
 3. The VSIX and NuGet package are `out/binaries/GoogleTestAdapter/Release/Packaging.GTA/Packaging.GTA.vsix` and

@@ -288,7 +288,11 @@ cd out/binaries/GoogleTestAdapter/Release
     benchmark is running for timeouts. After a crash, the benchmarks are listed again with the same filter to find the
     first one without results. `--benchmark_dry_run` exists since Google Benchmark 1.9.1; executables exit with 1 on
     unknown flags, so GTA checks for the flag's name in the executable (and its benchmark DLLs) first.
-    `ParallelTestRunner` runs the benchmark executables after the tests.
+    `ParallelTestRunner` runs the benchmark executables after the tests. Test Explorer (VS 2026) shows the message
+    (`TestResult.ErrorMessage`) of passed results too, so the summary is visible without opening the output. A *Test discovery regex*
+    newly matching a benchmark executable takes effect in Test Explorer
+    only after the executable is rebuilt (an up-to-date build after touching it is not enough) or the solution is
+    reopened.
 * **Test Explorer hierarchy:** `TestAdapter/DataConversionExtensions.cs` sets the `TestCase.Hierarchy` property
   (project, namespace, class, test group); instances of typed and parameterized tests share class and group.
 * **Code coverage** (`VsPackage.Shared/Settings/CodeCoverageRunSettings.cs`): VS only instruments the test

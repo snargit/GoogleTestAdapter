@@ -105,14 +105,20 @@ namespace GoogleTestAdapter.Runners
         /// <summary>
         /// Escapes the special characters of POSIX extended regular expressions, which Google Benchmark uses for
         /// --benchmark_filter (std::regex with std::regex_constants::extended); other characters must not be
-        /// escaped (e.g. "\/" and "\&lt;" are invalid)
+        /// escaped (e.g. "\/" and "\&lt;" are invalid). "]" becomes the bracket expression "[]]", since the STL of
+        /// VS 2022 (v143) rejects "\]" (VS 2026's accepts it).
         /// </summary>
         public static string EscapeRegex(string name)
         {
             var escaped = new StringBuilder(name.Length);
             foreach (char c in name)
             {
-                if (@"\.[](){}*+?|^$".IndexOf(c) >= 0)
+                if (c == ']')
+                {
+                    escaped.Append("[]]");
+                    continue;
+                }
+                if (@"\.[(){}*+?|^$".IndexOf(c) >= 0)
                     escaped.Append('\\');
                 escaped.Append(c);
             }

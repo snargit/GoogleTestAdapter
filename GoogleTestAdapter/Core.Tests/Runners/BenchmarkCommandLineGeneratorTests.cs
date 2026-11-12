@@ -30,7 +30,7 @@ namespace GoogleTestAdapter.Runners
         {
             BenchmarkCommandLineGenerator.EscapeRegex("BM_Foo/8/threads:2").Should().Be("BM_Foo/8/threads:2");
             BenchmarkCommandLineGenerator.EscapeRegex("BM_Foo<int, 3>").Should().Be("BM_Foo<int, 3>");
-            BenchmarkCommandLineGenerator.EscapeRegex(@"BM.(1+2)*[3]{4}|^$\?").Should().Be(@"BM\.\(1\+2\)\*\[3\]\{4\}\|\^\$\\\?");
+            BenchmarkCommandLineGenerator.EscapeRegex(@"BM.(1+2)*[3]{4}|^$\?").Should().Be(@"BM\.\(1\+2\)\*\[3[]]\{4\}\|\^\$\\\?");
         }
 
         [TestMethod]

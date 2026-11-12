@@ -279,8 +279,11 @@ cd out/binaries/GoogleTestAdapter/Release
     `/OPT:ICF` may fold benchmark functions (wrong line) and captures may be inlined (no location). Benchmarks are
     marked by `TestCaseMetaDataProperty.IsBenchmark`, which survives the round trip through VS.
   * Execution (`Runners/SequentialTestRunner.Benchmarks.cs`): `--benchmark_filter` is a `std::regex` with the
-    *extended* grammar, searched (not matched): GTA passes `^(name1|name2)$`, escaping only `\.[](){}*+?|^$` -
-    escaping other characters (e.g. `\/`, `\<`) is invalid with MSVC. Invalid or non-matching filters still exit with 0.
+    *extended* grammar, searched (not matched): GTA passes `^(name1|name2)$`, escaping only `\.[(){}*+?|^$` -
+    escaping other characters (e.g. `\/`, `\<`) is invalid with MSVC, and VS 2022's STL (v143) also rejects `\]`
+    (VS 2026's accepts it), so `]` becomes `[]]`. Invalid or non-matching filters still exit with 0 (Google Benchmark
+    only prints a message), so the benchmarks are reported as not found; run the sample's tests with executables built
+    by both toolsets when changing this (CI builds with both).
     Results come from `--benchmark_out=<file> --benchmark_out_format=json` (`TestResults/BenchmarkJsonParser.cs`:
     counters are top-level keys of a run, numbers may be `Infinity`/`NaN`, the file is truncated after a crash).
     Google Benchmark writes and flushes all runs of a benchmark (iterations and aggregates) when it has finished, so a

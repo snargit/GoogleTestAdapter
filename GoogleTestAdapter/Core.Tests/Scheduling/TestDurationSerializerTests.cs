@@ -133,6 +133,59 @@ namespace GoogleTestAdapter.Scheduling
             File.Delete(GetDurationsFile(serializer, tempFile));
         }
 
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void ReadTestDurations_DurationFileIsNoXml_InvalidTestDurationsException()
+        {
+            string tempFile = Path.GetTempFileName();
+            var serializer = new TestDurationSerializer();
+            string durationsFile = GetDurationsFile(serializer, tempFile);
+            try
+            {
+                File.WriteAllText(durationsFile, "no xml");
+
+                serializer
+                    .Invoking(s => s.ReadTestDurations(TestDataCreator.ToTestCase("TestSuite1.Test1", tempFile).Yield()))
+                    .Should().Throw<InvalidTestDurationsException>()
+                    .Which.Message.Should().Contain(durationsFile);
+            }
+            finally
+            {
+                File.Delete(durationsFile);
+                File.Delete(tempFile);
+            }
+        }
+
+        // e.g. if another process deletes the file while it is read (as tests running in parallel used to do)
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void ReadTestDurations_DurationFileCanNotBeOpened_InvalidTestDurationsException()
+        {
+            string tempFile = Path.GetTempFileName();
+            List<Model.TestResult> testResults = new List<Model.TestResult>
+            {
+                TestDataCreator.ToTestResult("TestSuite1.Test1", Model.TestOutcome.Passed, 3, tempFile)
+            };
+            var serializer = new TestDurationSerializer();
+            serializer.UpdateTestDurations(testResults);
+            string durationsFile = GetDurationsFile(serializer, tempFile);
+            try
+            {
+                using (new FileStream(durationsFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    serializer
+                        .Invoking(s => s.ReadTestDurations(testResults.Select(tr => tr.TestCase)))
+                        .Should().Throw<InvalidTestDurationsException>()
+                        .WithInnerException<IOException>();
+                }
+            }
+            finally
+            {
+                File.Delete(durationsFile);
+                File.Delete(tempFile);
+            }
+        }
+
 
         private string GetDurationsFile(TestDurationSerializer serializer, string executable)
         {

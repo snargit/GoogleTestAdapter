@@ -203,16 +203,23 @@ namespace GoogleTestAdapter.Scheduling
             settings.ValidationFlags = XmlSchemaValidationFlags.ReportValidationWarnings;
             settings.XmlResolver = null;
             settings.ValidationEventHandler += (object o, ValidationEventArgs e) => throw e.Exception;
-            using (var reader = XmlReader.Create(durationsFile, settings))
+            // durations only improve the scheduling of tests, so failing to read them must not fail the test run:
+            // the file might e.g. be deleted after File.Exists() returned true, or be written by an older GTA or a
+            // process which has been killed
+            try
             {
-                try
+                using (var reader = XmlReader.Create(durationsFile, settings))
                 {
                     return _serializer.Deserialize(reader) as GtaTestDurations;
                 }
-                catch (InvalidOperationException e) when (e.InnerException is XmlSchemaValidationException)
-                {
-                    throw new InvalidTestDurationsException($"Invalid file {durationsFile}. {e.InnerException.Message}", e.InnerException);
-                }
+            }
+            catch (InvalidOperationException e) when (e.InnerException is XmlSchemaValidationException)
+            {
+                throw new InvalidTestDurationsException($"Invalid file {durationsFile}. {e.InnerException.Message}", e.InnerException);
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is XmlException || e is InvalidOperationException)
+            {
+                throw new InvalidTestDurationsException($"Could not read file {durationsFile}. {e.Message}", e);
             }
         }
 

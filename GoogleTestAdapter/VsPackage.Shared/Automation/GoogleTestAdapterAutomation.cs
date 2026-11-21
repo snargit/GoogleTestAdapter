@@ -25,15 +25,21 @@ namespace GoogleTestAdapter.VsPackage.Automation
         public const string Name = "GoogleTestAdapter";
         public const int SchemaVersion = 1;
 
+        // the "Tests" pane of the Output window, written by Test Explorer and the test adapters
+        public static readonly Guid TestsOutputPane = new Guid("B85579AA-8BE0-4C4F-A850-90902B317581");
+
         private readonly Func<RunSettingsService> _runSettingsService;
+        private readonly IVisualStudioEnvironment _environment;
         private readonly string _name;
         private readonly Version _version;
         private readonly TestDiscoveryJobs _testDiscoveryJobs = new TestDiscoveryJobs();
 
         /// <param name="runSettingsService">null while the package is not initialized yet</param>
-        public GoogleTestAdapterAutomation(Func<RunSettingsService> runSettingsService, string name, Version version)
+        public GoogleTestAdapterAutomation(Func<RunSettingsService> runSettingsService, IVisualStudioEnvironment environment,
+            string name, Version version)
         {
             _runSettingsService = runSettingsService;
+            _environment = environment;
             _name = name;
             _version = version;
         }
@@ -59,7 +65,7 @@ namespace GoogleTestAdapter.VsPackage.Automation
         {
             return Execute((result, logger) =>
             {
-                executable = Path.GetFullPath(executable);
+                executable = GetExecutablePath(executable, nameof(executable), logger);
                 result.Add("executable", executable);
                 ExecuteWithSettings(executable, logger, (settings, container) =>
                 {
@@ -80,34 +86,126 @@ namespace GoogleTestAdapter.VsPackage.Automation
         {
             return Execute((result, logger) =>
             {
-                executable = Path.GetFullPath(executable);
+                executable = GetExecutablePath(executable, nameof(executable), logger);
+                result.Add("executable", executable);
                 ExecuteWithSettings(executable, logger, (settings, container) =>
                 {
-                    ExecutableInfo info = ExecutableInfo.Create(executable, settings, logger);
-                    result.Add("executable", info.Executable);
-                    result.Add("exists", info.Exists);
-                    result.Add("isExe", info.IsExe);
-                    result.Add("trust", new JsonObject
-                    {
-                        { "securityZone", info.SecurityZone },
-                        { "isOnNetworkDrive", info.IsOnNetworkDrive },
-                        { "skipOriginCheck", info.SkipOriginCheck },
-                        { "isTrusted", info.IsTrusted }
-                    });
-                    result.Add("googleTestIndicator", info.GoogleTestIndicator);
-                    result.Add("testFramework", info.TestFramework?.ToString());
-                    result.Add("testDiscoveryRegex", info.TestDiscoveryRegex);
-                    result.Add("pdb", info.Pdb);
-                    result.Add("wouldBeDiscovered", info.WouldBeDiscovered);
+                    AddExecutableInfo(result, ExecutableInfo.Create(executable, settings, logger));
                 });
             });
+        }
+
+        private static void AddExecutableInfo(JsonObject result, ExecutableInfo info)
+        {
+            result.Add("exists", info.Exists);
+            result.Add("isExe", info.IsExe);
+            result.Add("trust", new JsonObject
+            {
+                { "securityZone", info.SecurityZone },
+                { "isOnNetworkDrive", info.IsOnNetworkDrive },
+                { "skipOriginCheck", info.SkipOriginCheck },
+                { "isTrusted", info.IsTrusted }
+            });
+            result.Add("googleTestIndicator", info.GoogleTestIndicator);
+            result.Add("testFramework", info.TestFramework?.ToString());
+            result.Add("testDiscoveryRegex", info.TestDiscoveryRegex);
+            result.Add("pdb", info.Pdb);
+            result.Add("wouldBeDiscovered", info.WouldBeDiscovered);
+        }
+
+        public string GetSolutionExecutables()
+        {
+            return Execute((result, logger) =>
+            {
+                IVisualStudioEnvironment environment = GetEnvironment();
+                string solutionFullName = environment.SolutionFullName;
+                string settingsFile = SolutionPaths.GetSolutionSettingsFile(solutionFullName);
+                result.Add("solution", solutionFullName == null ? null : new JsonObject
+                {
+                    { "fullName", solutionFullName },
+                    { "settingsFile", settingsFile },
+                    { "settingsFileExists", settingsFile != null && File.Exists(settingsFile) }
+                });
+
+                IList<ProjectOutput> outputs = environment.GetProjectOutputs();
+                // the run settings are created once, the settings for each executable
+                string runSettings = outputs.Any(IsExe) ? CreateRunSettings(null, logger) : null;
+                result.Add("projects", outputs.Select(output =>
+                {
+                    var project = new JsonObject
+                    {
+                        { "name", output.Name },
+                        { "projectFile", output.ProjectFile },
+                        { "configuration", output.Configuration },
+                        { "output", output.KeyOutput },
+                        { "isTestProject", output.IsTestProject },
+                        { "isTestContainer", !string.IsNullOrEmpty(output.KeyOutput) && output.IsTestProject != false },
+                        { "error", output.Error }
+                    };
+                    JsonObject executable = null;
+                    if (IsExe(output))
+                    {
+                        executable = new JsonObject();
+                        ExecuteWithSettings(output.KeyOutput, runSettings, logger, (settings, container) =>
+                        {
+                            AddExecutableInfo(executable, ExecutableInfo.Create(output.KeyOutput, settings, logger));
+                        });
+                    }
+                    project.Add("executable", executable);
+                    return project;
+                }).ToList());
+            });
+        }
+
+        private static bool IsExe(ProjectOutput output)
+        {
+            return !string.IsNullOrEmpty(output.KeyOutput)
+                   && string.Equals(Path.GetExtension(output.KeyOutput), ".exe", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public string GetTestOutput(int maxLines)
+        {
+            return Execute((result, logger) =>
+            {
+                if (maxLines < 0)
+                    throw new ArgumentException($"Parameter maxLines is {maxLines}: pass the number of lines to return from the end of the pane, or 0 for all lines");
+                string text = null;
+                try
+                {
+                    text = GetEnvironment().GetOutputPaneText(TestsOutputPane);
+                    if (text == null)
+                        logger.LogWarning("The Output window has no pane 'Tests' yet (Test Explorer creates it when it writes to it)");
+                }
+                catch (NotSupportedException e)
+                {
+                    logger.LogWarning(e.Message);
+                }
+
+                result.Add("available", text != null);
+                if (text == null)
+                    return;
+
+                string[] lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+                // the text usually ends with a line break, which does not start another line
+                int lineCount = lines.Length > 0 && lines[lines.Length - 1].Length == 0 ? lines.Length - 1 : lines.Length;
+                int skipped = maxLines > 0 ? Math.Max(0, lineCount - maxLines) : 0;
+                result.Add("lineCount", lineCount);
+                result.Add("text", string.Join(Environment.NewLine, lines.Skip(skipped).Take(lineCount - skipped)));
+            });
+        }
+
+        private IVisualStudioEnvironment GetEnvironment()
+        {
+            if (_environment == null || _runSettingsService() == null)
+                throw new InvalidOperationException($"{_name} has not been initialized yet");
+            return _environment;
         }
 
         public string StartTestDiscovery(string executable)
         {
             return Execute((result, logger) =>
             {
-                executable = Path.GetFullPath(executable);
+                executable = GetExecutablePath(executable, nameof(executable), logger);
                 // the run settings are created on the calling thread, since they depend on the solution's state
                 string runSettings = CreateRunSettings(null, logger);
                 TestDiscoveryJobs.Job job = _testDiscoveryJobs.Start(executable, j => DiscoverTests(j, runSettings));
@@ -118,13 +216,15 @@ namespace GoogleTestAdapter.VsPackage.Automation
 
         public string GetTestDiscoveryResult(string discoveryId)
         {
-            return Execute(result =>
+            return Execute((result, logger) =>
             {
                 result.Add("discoveryId", discoveryId);
                 TestDiscoveryJobs.Job job = _testDiscoveryJobs.Get(discoveryId);
                 if (job == null)
                 {
                     result.Add("status", TestDiscoveryJobs.Unknown);
+                    logger.LogWarning($"Unknown discoveryId '{discoveryId}': pass the discoveryId returned by StartTestDiscovery() " +
+                                      $"(the results of the latest {TestDiscoveryJobs.MaxNrOfJobs} discoveries are kept, and are lost when Visual Studio restarts)");
                     return;
                 }
 
@@ -204,9 +304,23 @@ namespace GoogleTestAdapter.VsPackage.Automation
 
             var document = new XmlDocument { XmlResolver = null };
             if (string.IsNullOrEmpty(runSettingsFile))
+            {
                 document.LoadXml("<RunSettings />");
+            }
             else
-                document.Load(runSettingsFile);
+            {
+                string file = GetPath(runSettingsFile, nameof(runSettingsFile), "a .runsettings file (or null for none)");
+                if (!File.Exists(file))
+                    throw new ArgumentException($"Parameter runSettingsFile: the run settings file '{file}' does not exist (pass null for none)");
+                try
+                {
+                    document.Load(file);
+                }
+                catch (XmlException e)
+                {
+                    throw new ArgumentException($"Parameter runSettingsFile: '{file}' is no valid XML file: {e.Message}", e);
+                }
+            }
 
             XPathNavigator navigator = runSettingsService.AddRunSettings(document, null, new TestWindowLoggerAdapter(logger)).CreateNavigator();
             navigator.MoveToRoot();
@@ -269,12 +383,53 @@ namespace GoogleTestAdapter.VsPackage.Automation
             {
                 action(result, logger);
             }
+            catch (ArgumentException e)
+            {
+                // the caller passed something wrong, which the message explains
+                logger.LogError(e.Message);
+            }
             catch (Exception e)
             {
                 logger.LogError($"{e.GetType().Name}: {e.Message}");
             }
             result.Add("messages", logger.Messages);
             return Json.Write(result);
+        }
+
+        /// <summary>
+        /// The full path of an executable passed by the caller; warns if it does not exist (e.g. since it has not been
+        /// built yet, which callers might not expect)
+        /// </summary>
+        private static string GetExecutablePath(string executable, string parameter, ILogger logger)
+        {
+            string path = GetPath(executable, parameter, "the full path of a test executable (.exe)");
+            if (!File.Exists(path))
+                logger.LogWarning($"The executable '{path}' does not exist (e.g. since the project has not been built for the active configuration; GetSolutionExecutables() lists the projects' outputs)");
+            return path;
+        }
+
+        // callers run in other processes with other working directories, so relative paths are rejected
+        private static string GetPath(string path, string parameter, string expected)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                throw new ArgumentException($"Parameter {parameter} is missing: pass {expected}");
+
+            bool isFullPath;
+            string fullPath;
+            try
+            {
+                // "\dir\file.exe" is rooted, but relative to the current drive
+                isFullPath = Path.IsPathRooted(path) && Path.GetPathRoot(path) != Path.DirectorySeparatorChar.ToString();
+                fullPath = Path.GetFullPath(path);
+            }
+            catch (Exception e) when (e is ArgumentException || e is NotSupportedException || e is PathTooLongException)
+            {
+                throw new ArgumentException($"Parameter {parameter} is '{path}', which is no valid path ({e.Message}): pass {expected}", e);
+            }
+
+            if (!isFullPath)
+                throw new ArgumentException($"Parameter {parameter} is '{path}', which is no full path: pass {expected} (relative paths would be resolved against Visual Studio's working directory, '{Environment.CurrentDirectory}')");
+            return fullPath;
         }
 
         private class TestWindowLoggerAdapter : TestWindowLogger

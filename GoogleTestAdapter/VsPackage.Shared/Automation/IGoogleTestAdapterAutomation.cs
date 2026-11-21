@@ -64,5 +64,30 @@ namespace GoogleTestAdapter.VsPackage.Automation
         /// ("name", "value"), and "testProperties" (the CTest test properties "workingDirectory", "environment",
         /// "labels", "timeoutInSeconds", and "disabled"; null if there are none)</returns>
         string GetTestDiscoveryResult(string discoveryId);
+
+        // methods are only added at the end, so that the interface stays compatible with early-bound clients
+
+        /// <summary>
+        /// The executables Test Explorer gives to the test adapters for the open solution: the key outputs of the active
+        /// configurations of the solution's loaded projects, except those of projects setting MSBuild property
+        /// IsTestProject to false, with what GTA makes of each .exe (see CheckExecutable()). In Open Folder mode (e.g. CMake
+        /// projects), the solution has no projects.
+        /// </summary>
+        /// <returns>"solution" ("fullName", "settingsFile" (GTA's solution settings file), "settingsFileExists"), and
+        /// "projects": "name", "projectFile", "configuration" ("Configuration|Platform"), "output" (null if unknown),
+        /// "isTestProject" (null if not set), "isTestContainer" (whether Test Explorer gives the output to the test
+        /// adapters), "error" (why the output is unknown, or null), and "executable" (for .exe outputs: the members
+        /// "exists" to "wouldBeDiscovered" of CheckExecutable()'s result; otherwise null)</returns>
+        string GetSolutionExecutables();
+
+        /// <summary>
+        /// The end of the text Test Explorer and the test adapters (e.g. GTA, see its option Output mode) have written to
+        /// the "Tests" pane of Visual Studio's Output window. Visual Studio only provides the text of panes which have been
+        /// shown, so the pane is shown in the Output window (without activating it) if necessary.
+        /// </summary>
+        /// <param name="maxLines">the number of lines to return from the end of the pane; 0 for all</param>
+        /// <returns>"available" (false if the pane does not exist yet, or Visual Studio does not provide its text, see
+        /// "messages"), "lineCount" (the pane's number of lines), and "text"</returns>
+        string GetTestOutput(int maxLines);
     }
 }

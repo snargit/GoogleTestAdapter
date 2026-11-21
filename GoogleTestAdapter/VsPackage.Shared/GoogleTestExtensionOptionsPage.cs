@@ -142,6 +142,7 @@ namespace GoogleTestAdapter.VsPackage
 
             return _automation ?? (_automation = new GoogleTestAdapterAutomation(
                 () => _globalRunSettings?.RunSettings == null ? null : new RunSettingsService(_globalRunSettings),
+                new VisualStudioEnvironment(this),
                 Common.Strings.Instance.ExtensionName,
                 typeof(GoogleTestExtensionOptionsPage).Assembly.GetName().Version));
         }

@@ -36,12 +36,14 @@ namespace GoogleTestAdapter.VsPackage.Automation
 </RunSettings>";
 
         private string _solutionSettingsFile;
+        private Mock<IVisualStudioEnvironment> _mockEnvironment;
 
         [TestInitialize]
         public void CreateSolutionSettingsFile()
         {
             _solutionSettingsFile = Path.GetTempFileName();
             File.WriteAllText(_solutionSettingsFile, SolutionSettings);
+            _mockEnvironment = new Mock<IVisualStudioEnvironment>();
         }
 
         [TestCleanup]
@@ -64,7 +66,8 @@ namespace GoogleTestAdapter.VsPackage.Automation
             mockGlobalRunSettings.Setup(grs => grs.RunSettings).Returns(globalRunSettings);
             var service = new RunSettingsServiceUnderTest(mockGlobalRunSettings.Object, solutionSettings ? _solutionSettingsFile : null);
 
-            return new GoogleTestAdapterAutomation(() => initialized ? service : null, "Google Test Adapter", new Version(1, 2, 3, 4));
+            return new GoogleTestAdapterAutomation(() => initialized ? service : null, _mockEnvironment.Object,
+                "Google Test Adapter", new Version(1, 2, 3, 4));
         }
 
         private static Dictionary<string, object> Parse(string json)
@@ -169,7 +172,7 @@ namespace GoogleTestAdapter.VsPackage.Automation
         [TestCategory(Unit)]
         public void GetEffectiveSettings_ExecutableNotMatchingProjectSettings_SolutionSettingsAreUsed()
         {
-            var result = Parse(CreateAutomation().GetEffectiveSettings(TestResources.LoadTests_ReleaseX86));
+            var result = Parse(CreateAutomation().GetEffectiveSettings(Path.GetFullPath(TestResources.LoadTests_ReleaseX86)));
 
             result["projectSettings"].Should().BeNull();
             ((Dictionary<string, object>)result["settings"])[nameof(SettingsWrapper.WorkingDir)].Should().Be("SolutionWorkingDir");
@@ -179,7 +182,7 @@ namespace GoogleTestAdapter.VsPackage.Automation
         [TestCategory(Integration)]
         public void CheckExecutable_GoogleTestExecutable_WouldBeDiscovered()
         {
-            var result = Parse(CreateAutomation().CheckExecutable(TestResources.Tests_DebugX86));
+            var result = Parse(CreateAutomation().CheckExecutable(Path.GetFullPath(TestResources.Tests_DebugX86)));
 
             result["exists"].Should().Be(true);
             result["isExe"].Should().Be(true);
@@ -197,7 +200,7 @@ namespace GoogleTestAdapter.VsPackage.Automation
         [TestCategory(Integration)]
         public void CheckExecutable_GoogleBenchmarkExecutable_WouldBeDiscovered()
         {
-            var result = Parse(CreateAutomation().CheckExecutable(TestResources.BenchmarkTests_DebugX86));
+            var result = Parse(CreateAutomation().CheckExecutable(Path.GetFullPath(TestResources.BenchmarkTests_DebugX86)));
 
             result["googleTestIndicator"].Should().Be(GoogleTestDiscoverer.IndicatorGoogleBenchmarkMarkers);
             result["testFramework"].Should().Be("GoogleBenchmark");
@@ -248,7 +251,7 @@ namespace GoogleTestAdapter.VsPackage.Automation
         {
             var automation = CreateAutomation(solutionSettings: false);
 
-            var started = Parse(automation.StartTestDiscovery(TestResources.FixtureTests_DebugX86));
+            var started = Parse(automation.StartTestDiscovery(Path.GetFullPath(TestResources.FixtureTests_DebugX86)));
             var result = WaitForTestDiscovery(automation, (string)started["discoveryId"]);
 
             result["status"].Should().Be(TestDiscoveryJobs.Completed);
@@ -274,7 +277,7 @@ namespace GoogleTestAdapter.VsPackage.Automation
             // unlike Google Test, Google Benchmark rejects unknown flags
             var automation = CreateAutomation(solutionSettings: false, additionalTestExecutionParam: "");
 
-            var started = Parse(automation.StartTestDiscovery(TestResources.BenchmarkTests_DebugX86));
+            var started = Parse(automation.StartTestDiscovery(Path.GetFullPath(TestResources.BenchmarkTests_DebugX86)));
             var result = WaitForTestDiscovery(automation, (string)started["discoveryId"]);
 
             result["status"].Should().Be(TestDiscoveryJobs.Completed, new JavaScriptSerializer().Serialize(result["discoveryMessages"]));
@@ -297,7 +300,7 @@ namespace GoogleTestAdapter.VsPackage.Automation
             // the working dir of the solution settings does not exist
             var automation = CreateAutomation();
 
-            var started = Parse(automation.StartTestDiscovery(TestResources.FixtureTests_DebugX86));
+            var started = Parse(automation.StartTestDiscovery(Path.GetFullPath(TestResources.FixtureTests_DebugX86)));
             var result = WaitForTestDiscovery(automation, (string)started["discoveryId"]);
 
             result["status"].Should().Be(TestDiscoveryJobs.Failed);
@@ -325,7 +328,7 @@ namespace GoogleTestAdapter.VsPackage.Automation
         [TestCategory(Unit)]
         public void StartTestDiscovery_NotInitialized_ErrorMessageAndNoId()
         {
-            var result = Parse(CreateAutomation(initialized: false).StartTestDiscovery(TestResources.FixtureTests_DebugX86));
+            var result = Parse(CreateAutomation(initialized: false).StartTestDiscovery(Path.GetFullPath(TestResources.FixtureTests_DebugX86)));
 
             result.Should().NotContainKey("discoveryId");
             Messages(result, "Error").Should().ContainSingle().Which.Should().Contain("not been initialized");
@@ -339,6 +342,222 @@ namespace GoogleTestAdapter.VsPackage.Automation
 
             result["status"].Should().Be(TestDiscoveryJobs.Unknown);
             result["discoveryId"].Should().Be("no such id");
+        }
+
+        [TestMethod]
+        [TestCategory(Integration)]
+        public void GetSolutionExecutables_ProjectsOfAllKinds_OutputsAndExecutablesAreReported()
+        {
+            string solution = Path.Combine(Path.GetTempPath(), "GtaAutomationTests.sln");
+            _mockEnvironment.Setup(e => e.SolutionFullName).Returns(solution);
+            _mockEnvironment.Setup(e => e.GetProjectOutputs()).Returns(new List<ProjectOutput>
+            {
+                new ProjectOutput { Name = "Tests", ProjectFile = "Tests.vcxproj", Configuration = "Debug|Win32", KeyOutput = Path.GetFullPath(TestResources.Tests_DebugX86) },
+                new ProjectOutput { Name = "Benchmarks", Configuration = "Debug|Win32", KeyOutput = Path.GetFullPath(TestResources.BenchmarkTests_DebugX86) },
+                new ProjectOutput { Name = "Library", Configuration = "Release|Win32", KeyOutput = Path.GetFullPath(TestResources.DllTestsDll_ReleaseX86) },
+                new ProjectOutput { Name = "Tool", Configuration = "Debug|Win32", KeyOutput = Path.GetFullPath(TestResources.Tests_DebugX86), IsTestProject = false },
+                new ProjectOutput { Name = "Broken", Error = "The project has no active configuration" }
+            });
+
+            var result = Parse(CreateAutomation(solutionSettings: false).GetSolutionExecutables());
+
+            Messages(result, "Error").Should().BeEmpty();
+            var solutionInfo = (Dictionary<string, object>)result["solution"];
+            solutionInfo["fullName"].Should().Be(solution);
+            solutionInfo["settingsFile"].Should().Be(Path.ChangeExtension(solution, ".gta.runsettings"));
+            solutionInfo["settingsFileExists"].Should().Be(false);
+            var projects = ((ArrayList)result["projects"]).Cast<Dictionary<string, object>>().ToDictionary(p => (string)p["name"]);
+            projects.Keys.Should().Equal("Tests", "Benchmarks", "Library", "Tool", "Broken");
+
+            var tests = projects["Tests"];
+            tests["projectFile"].Should().Be("Tests.vcxproj");
+            tests["configuration"].Should().Be("Debug|Win32");
+            tests["isTestProject"].Should().BeNull();
+            tests["isTestContainer"].Should().Be(true);
+            var testsExecutable = (Dictionary<string, object>)tests["executable"];
+            testsExecutable["testFramework"].Should().Be("GoogleTest");
+            testsExecutable["wouldBeDiscovered"].Should().Be(true);
+            ((Dictionary<string, object>)projects["Benchmarks"]["executable"])["testFramework"].Should().Be("GoogleBenchmark");
+
+            projects["Library"]["isTestContainer"].Should().Be(true);
+            projects["Library"]["executable"].Should().BeNull("only .exe files are test executables");
+            projects["Tool"]["isTestProject"].Should().Be(false);
+            projects["Tool"]["isTestContainer"].Should().Be(false, "Test Explorer ignores projects setting IsTestProject to false");
+            projects["Broken"]["output"].Should().BeNull();
+            projects["Broken"]["isTestContainer"].Should().Be(false);
+            projects["Broken"]["error"].Should().Be("The project has no active configuration");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetSolutionExecutables_NoSolution_NoProjects()
+        {
+            _mockEnvironment.Setup(e => e.GetProjectOutputs()).Returns(new List<ProjectOutput>());
+
+            var result = Parse(CreateAutomation().GetSolutionExecutables());
+
+            result["solution"].Should().BeNull();
+            ((ArrayList)result["projects"]).Should().BeEmpty();
+            Messages(result, "Error").Should().BeEmpty();
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetSolutionExecutables_NotInitialized_ErrorMessage()
+        {
+            var result = Parse(CreateAutomation(initialized: false).GetSolutionExecutables());
+
+            result.Should().NotContainKey("projects");
+            Messages(result, "Error").Should().ContainSingle().Which.Should().Contain("not been initialized");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetTestOutput_PaneWithText_LastLinesAreReturned()
+        {
+            _mockEnvironment.Setup(e => e.GetOutputPaneText(GoogleTestAdapterAutomation.TestsOutputPane))
+                .Returns("line 1\r\nline 2\r\nline 3\r\n");
+            var automation = CreateAutomation();
+
+            var result = Parse(automation.GetTestOutput(2));
+
+            result["available"].Should().Be(true);
+            result["lineCount"].Should().Be(3);
+            result["text"].Should().Be("line 2" + Environment.NewLine + "line 3");
+            Parse(automation.GetTestOutput(0))["text"].Should().Be(string.Join(Environment.NewLine, "line 1", "line 2", "line 3"));
+            Parse(automation.GetTestOutput(10))["text"].Should().Be(string.Join(Environment.NewLine, "line 1", "line 2", "line 3"));
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetTestOutput_NoPane_NotAvailableWithWarning()
+        {
+            var result = Parse(CreateAutomation().GetTestOutput(0));
+
+            result["available"].Should().Be(false);
+            result.Should().NotContainKey("text");
+            Messages(result, "Warning").Should().ContainSingle().Which.Should().Contain("no pane 'Tests'");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetTestOutput_TextNotProvidedByVisualStudio_NotAvailableWithWarning()
+        {
+            _mockEnvironment.Setup(e => e.GetOutputPaneText(It.IsAny<Guid>()))
+                .Throws(new NotSupportedException("This version of Visual Studio does not provide the text"));
+
+            var result = Parse(CreateAutomation().GetTestOutput(0));
+
+            result["available"].Should().Be(false);
+            Messages(result, "Warning").Should().ContainSingle().Which.Should().Contain("does not provide the text");
+            Messages(result, "Error").Should().BeEmpty();
+        }
+
+        // callers (e.g. agents) correct their calls from the messages, so these must say what to pass
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void CheckExecutable_NoPath_ErrorNamesParameterAndWhatToPass()
+        {
+            foreach (string executable in new[] { null, "", "  " })
+            {
+                var result = Parse(CreateAutomation().CheckExecutable(executable));
+
+                result.Should().NotContainKey("wouldBeDiscovered");
+                Messages(result, "Error").Should().ContainSingle().Which.Should()
+                    .Be("Parameter executable is missing: pass the full path of a test executable (.exe)");
+            }
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetEffectiveSettings_RelativePath_ErrorAsksForFullPath()
+        {
+            foreach (string executable in new[] { @"Debug\Tests.exe", @"\Debug\Tests.exe" })
+            {
+                var result = Parse(CreateAutomation().GetEffectiveSettings(executable));
+
+                result.Should().NotContainKey("settings");
+                Messages(result, "Error").Should().ContainSingle().Which.Should()
+                    .StartWith($"Parameter executable is '{executable}', which is no full path: pass the full path of a test executable (.exe)")
+                    .And.Contain(Environment.CurrentDirectory);
+            }
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void StartTestDiscovery_InvalidPath_ErrorAndNoDiscovery()
+        {
+            var result = Parse(CreateAutomation().StartTestDiscovery(@"C:\Tests|Debug\Tests.exe"));
+
+            result.Should().NotContainKey("discoveryId");
+            Messages(result, "Error").Should().ContainSingle().Which.Should()
+                .StartWith(@"Parameter executable is 'C:\Tests|Debug\Tests.exe', which is no valid path (")
+                .And.EndWith("): pass the full path of a test executable (.exe)");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void CheckExecutable_ExecutableDoesNotExist_WarningPointsToSolutionExecutables()
+        {
+            var result = Parse(CreateAutomation().CheckExecutable(@"C:\NotExisting\Tests.exe"));
+
+            Messages(result, "Warning").Should().ContainSingle().Which.Should()
+                .Contain(@"'C:\NotExisting\Tests.exe' does not exist").And.Contain("GetSolutionExecutables()");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetRunSettings_FileIsNoXml_ErrorNamesFile()
+        {
+            string runSettingsFile = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(runSettingsFile, "no xml");
+
+                var result = Parse(CreateAutomation().GetRunSettings(runSettingsFile));
+
+                result.Should().NotContainKey("runSettings");
+                Messages(result, "Error").Should().ContainSingle().Which.Should()
+                    .StartWith($"Parameter runSettingsFile: '{runSettingsFile}' is no valid XML file: ");
+            }
+            finally
+            {
+                File.Delete(runSettingsFile);
+            }
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetRunSettings_RelativePath_ErrorAsksForFullPath()
+        {
+            var result = Parse(CreateAutomation().GetRunSettings("My.runsettings"));
+
+            Messages(result, "Error").Should().ContainSingle().Which.Should()
+                .StartWith("Parameter runSettingsFile is 'My.runsettings', which is no full path: pass a .runsettings file (or null for none)");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetTestDiscoveryResult_UnknownId_WarningExplainsWhichIdsAreKnown()
+        {
+            var result = Parse(CreateAutomation().GetTestDiscoveryResult("no such id"));
+
+            Messages(result, "Warning").Should().ContainSingle().Which.Should()
+                .StartWith("Unknown discoveryId 'no such id': pass the discoveryId returned by StartTestDiscovery()");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
+        public void GetTestOutput_NegativeMaxLines_ErrorSaysWhatToPass()
+        {
+            _mockEnvironment.Setup(e => e.GetOutputPaneText(It.IsAny<Guid>())).Returns("line\r\n");
+
+            var result = Parse(CreateAutomation().GetTestOutput(-1));
+
+            result.Should().NotContainKey("text");
+            Messages(result, "Error").Should().ContainSingle().Which.Should()
+                .Be("Parameter maxLines is -1: pass the number of lines to return from the end of the pane, or 0 for all lines");
         }
 
         [TestMethod]

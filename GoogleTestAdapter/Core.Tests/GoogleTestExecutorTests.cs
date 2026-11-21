@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Linq;
 using FluentAssertions;
 using GoogleTestAdapter.Model;
@@ -30,13 +31,17 @@ namespace GoogleTestAdapter
             AssertDurationsFileIsCreated(true);
         }
 
+        // Other test assemblies, which run in parallel, run the same sample executables and thus update the same
+        // durations files (the serializer locks them across processes, and merges the durations). So the files must not
+        // be deleted (deleting them is not locked, and fails while another process has them open, or another process
+        // recreates them right away); instead, they must have been written during the test run, and contain the
+        // durations of its tests.
         private void AssertDurationsFileIsCreated(bool parallelExecution)
         {
             string sampleTestsDurationsFile = TestResources.Tests_DebugX86 + GoogleTestConstants.DurationsExtension;
-            RemoveFileIfNecessary(sampleTestsDurationsFile);
-
             string crashingTestsDurationsFile = TestResources.CrashingTests_DebugX86 + GoogleTestConstants.DurationsExtension;
-            RemoveFileIfNecessary(crashingTestsDurationsFile);
+            // file system timestamps may be slightly coarser than the clock
+            DateTime start = DateTime.UtcNow.AddSeconds(-1);
 
             MockOptions.Setup(o => o.ParallelTestExecution).Returns(parallelExecution);
             MockOptions.Setup(o => o.MaxNrOfThreads).Returns(2);
@@ -48,25 +53,20 @@ namespace GoogleTestAdapter
             var testExecutor = new GoogleTestExecutor(TestEnvironment.Logger, TestEnvironment.Options, ProcessExecutorFactory, exitCodeTestsReporter);
             testExecutor.RunTests(TestDataCreator.AllTestCasesExceptLoadTests, collectingReporter,false);
 
-            sampleTestsDurationsFile.AsFileInfo()
-                .Should()
-                .Exist("Test execution should result in test durations");
+            AssertWrittenSince(sampleTestsDurationsFile, start);
             var durations = new TestDurationSerializer().ReadTestDurations(TestDataCreator.AllTestCasesOfSampleTests);
             durations.Keys.Should().Contain(
                 TestDataCreator.AllTestCasesOfSampleTests.Where(tc => collectingReporter.ReportedTestResults.Any(tr => tc.Equals(tr.TestCase) && (tr.Outcome == TestOutcome.Passed || tr.Outcome == TestOutcome.Failed))));
 
-            crashingTestsDurationsFile.AsFileInfo()
-                .Should()
-                .Exist("Test execution should result in test durations file");
+            AssertWrittenSince(crashingTestsDurationsFile, start);
             durations = new TestDurationSerializer().ReadTestDurations(TestDataCreator.AllTestCasesOfHardCrashingTests);
             durations.Keys.Should().Contain(TestDataCreator.AllTestCasesOfHardCrashingTests.Where(tc => collectingReporter.ReportedTestResults.Any(tr => tc.Equals(tr.TestCase) && (tr.Outcome == TestOutcome.Passed || tr.Outcome == TestOutcome.Failed))));
         }
 
-        private void RemoveFileIfNecessary(string file)
+        private static void AssertWrittenSince(string file, DateTime start)
         {
-            if (File.Exists(file))
-                File.Delete(file);
-            file.AsFileInfo().Should().NotExist("it was just deleted");
+            file.AsFileInfo().Should().Exist("test execution should result in a test durations file");
+            File.GetLastWriteTimeUtc(file).Should().BeOnOrAfter(start, "test execution should update the test durations file");
         }
 
     }

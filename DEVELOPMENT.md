@@ -150,8 +150,11 @@ cd out/binaries/GoogleTestAdapter/Release
 ```
 
 * All 782 tests pass (0.22.0: 764). Run the suite more than once after changes affecting timing or files: the test
-  assemblies run in parallel and share the sample binaries, so tests must never rename or modify sample files (one
-  test renaming a sample's .pdb was flaky for exactly this reason).
+  assemblies run in parallel and share the sample binaries, so tests must never rename or modify sample files, nor
+  delete the files GTA writes next to them, such as the durations files `<exe>.gta.testdurations` (one test renaming a
+  sample's .pdb, and one deleting durations files, which another process recreated right away, were flaky for exactly
+  this reason). Races show up more often when a test runs in a loop while another assembly's tests use the same
+  samples.
 * VS 2026's `vstest.console.exe` (`.../18/Professional/...`) runs the tests as well.
 * For end-to-end checks, run sample executables through `vstest.console.exe <exe> /TestAdapterPath:<repo>\out\binaries\GoogleTestAdapter\Release\Packaging.GTA`,
   optionally with `/Settings:<file>` containing `<GoogleTestAdapterSettings>` (e.g. `<OutputMode>Debug</OutputMode>`,

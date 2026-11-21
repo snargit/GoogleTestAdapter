@@ -23,6 +23,10 @@
 			<Settings ProjectRegex=".*\\HelperFileTests_gta\.exe">
 				<AdditionalTestExecutionParam>-TheTarget=$(TheTarget)</AdditionalTestExecutionParam>
 			</Settings>
+			<!-- Google Benchmark exits on unknown flags such as the solution's -testdirectory -->
+			<Settings ProjectRegex=".*\\BenchmarkTests_gta\.exe">
+				<AdditionalTestExecutionParam></AdditionalTestExecutionParam>
+			</Settings>
 		</ProjectSettings>
 	</GoogleTestAdapterSettings>
 </RunSettings>

@@ -1,0 +1,14 @@
+{
+  "name": "google-test-adapter",
+  "version": "0.22.0",
+  "description": "Diagnose and configure Google Test Adapter, which shows and runs Google Test tests and Google Benchmark benchmarks in Visual Studio's Test Explorer.",
+  "author": {
+    "name": "David Bailey",
+    "url": "https://github.com/snargit"
+  },
+  "homepage": "https://github.com/snargit/GoogleTestAdapter#agent_skill",
+  "repository": "https://github.com/snargit/GoogleTestAdapter",
+  "license": "Apache-2.0",
+  "keywords": ["visual-studio", "googletest", "google-benchmark", "test-explorer", "c++"],
+  "skills": "./skills/"
+}

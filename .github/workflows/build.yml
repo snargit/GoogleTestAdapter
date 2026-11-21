@@ -173,6 +173,12 @@ jobs:
         merge-multiple: true
         path: packages
 
+    # for agents without plugins (e.g. Copilot in Visual Studio): the zip contains the skill's folder
+    - name: Package agent skill
+      env:
+        VERSION: ${{ needs.build.outputs.version }}
+      run: cd agent-plugin/skills && zip -r "../../packages/google-test-adapter-skill-$VERSION.zip" google-test-adapter
+
     - name: Create draft release
       env:
         GH_TOKEN: ${{ github.token }}

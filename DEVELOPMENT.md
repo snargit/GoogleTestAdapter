@@ -13,6 +13,8 @@ describes the code base as it was before the fork.
 * Since 0.22.0: support of Google Benchmark executables (see the README and [Google Benchmark](#google-benchmark)
   below); executables containing both Google Test tests and benchmarks are out of scope so far (GTA discovers their
   tests only).
+* Since 0.22.0 (not released yet): an agent plugin with a skill for diagnosing and configuring GTA (see
+  [Agent plugin](#agent-plugin) below), and the automation object's `GetSolutionExecutables()` and `GetTestOutput()`.
 * Supported: Visual Studio 2017 to 2026, .NET Framework 4.6. Visual Studio 2013/2015 support has been dropped.
 * Known gap: the end-to-end tests (`VsPackage.Tests`, `VsPackage.Tests.Generated`, category `End to end`) compare the
   complete console output of test runs with expected files, which have not been updated for the fork's changes (e.g.
@@ -40,6 +42,7 @@ describes the code base as it was before the fork.
 | `ThirdParty/googletest` | Submodule, Google Test 1.18.0 |
 | `ThirdParty/benchmark` | Submodule, Google Benchmark 1.10.0, compiled into the sample `SampleTests/BenchmarkTests` |
 | `GoogleTestAdapter/Core/Resources/GTA_Traits_*.h` | Trait macros headers for Google Test 1.7.0 to 1.18.0; `GTA_Traits.md` describes how to create and verify them |
+| `agent-plugin/` | The agent plugin (Claude Code, Codex, Copilot CLI) with the skill `skills/google-test-adapter/` (`SKILL.md`, `references/settings.md`, `scripts/gta.ps1`); `.claude-plugin/marketplace.json` makes the repository its marketplace |
 | `NuGetPackages/` | Restored NuGet packages (not under source control) |
 | `out/` | Build output (not under source control) |
 
@@ -146,7 +149,7 @@ cd out/binaries/GoogleTestAdapter/Release
     VsPackage.GTA.Tests.Unit/GoogleTestAdapter.VsPackage.GTA.Tests.Unit.dll //Parallel
 ```
 
-* As of 0.22.0, all 764 tests pass. Run the suite more than once after changes affecting timing or files: the test
+* All 782 tests pass (0.22.0: 764). Run the suite more than once after changes affecting timing or files: the test
   assemblies run in parallel and share the sample binaries, so tests must never rename or modify sample files (one
   test renaming a sample's .pdb was flaky for exactly this reason).
 * VS 2026's `vstest.console.exe` (`.../18/Professional/...`) runs the tests as well.
@@ -160,7 +163,9 @@ cd out/binaries/GoogleTestAdapter/Release
 1. Version numbers live in `GoogleTestAdapter/Packaging.GTA/VsPackage.nuspec` (also the version of the CI builds),
    `GoogleTestAdapter/VsPackage.GTA/ReleaseNotes/History.cs` (version and date), and the release notes
    `GoogleTestAdapter/VsPackage.GTA/Resources/ReleaseNotes/<version>.md` (registered as `Content` in
-   `VsPackage.GTA.csproj`; a test checks that every version in `History.cs` has release notes). Pushing tag
+   `VsPackage.GTA.csproj`; a test checks that every version in `History.cs` has release notes), and the agent plugin's
+   manifests `agent-plugin/.claude-plugin/plugin.json` and `agent-plugin/.codex-plugin/plugin.json` (agents update the
+   plugin when its version changes; a test checks that it is the version of `VsPackage.nuspec`). Pushing tag
    `v<version>` makes the CI create a draft release (see [Building](#building)).
 2. Stamp the version for the build, build, and revert the stamp:
    ```bash
@@ -213,7 +218,8 @@ cd out/binaries/GoogleTestAdapter/Release
   `[Runtime.InteropServices.Marshal]::GetActiveObject("VisualStudio.DTE.18.0")` (retry calls VS rejects while busy).
 * **Automation object** (`VsPackage.Shared/Automation/`): `DTE.GetObject("GoogleTestAdapter")` (registered with
   `ProvideAutomationObject`, created by the package's `GetAutomationObject()`) provides what an MCP server can not get
-  from Test Explorer; `Tools/AutomationExample.ps1` shows its use. Its methods return JSON strings (written by
+  from Test Explorer; the agent skill's script (see [Agent plugin](#agent-plugin)) and `Tools/AutomationExample.ps1`
+  show its use. Its methods return JSON strings (written by
   `Automation/Json.cs`, since .NET Framework has no JSON serializer usable here) with `schemaVersion` (increment it on
   incompatible changes) and `messages` (warnings and errors, also of failures; the methods do not throw):
   * `GetVersion()`: `name`, `version`.
@@ -229,8 +235,8 @@ cd out/binaries/GoogleTestAdapter/Release
     `GoogleTestDiscoverer.GetGoogleTestExecutableIndicator()` which matched, or null), `testFramework` (`GoogleTest`,
     `GoogleBenchmark`, or null), `testDiscoveryRegex`, `pdb`, and `wouldBeDiscovered`; the executable is not run.
   * `StartTestDiscovery(executable)`: `discoveryId`, `executable`. Discovers the tests in the background
-    (`Automation/TestDiscoveryJobs.cs`): COM calls arrive on VS's UI thread, and discovery runs the executable, which
-    takes up to the discovery timeout. Only executables GTA would discover (`ExecutableInfo.WouldBeDiscovered`) are
+    (`Automation/TestDiscoveryJobs.cs`), since discovery runs the executable, which takes up to the discovery timeout,
+    and the caller would wait for it. Only executables GTA would discover (`ExecutableInfo.WouldBeDiscovered`) are
     run. The run settings are created on the calling thread, the settings and the discovery on the background thread
     (`SettingsWrapper.ExecuteWithSettingsForExecutable()` is bound to its thread).
   * `GetTestDiscoveryResult(discoveryId)`: `status` (`Running`, `Completed`, `Failed` if the discovery reported
@@ -238,9 +244,49 @@ cd out/binaries/GoogleTestAdapter/Release
     `discoveryMessages`, and, if completed, `tests` (`fullyQualifiedName`, `displayName`, `kind` (`Test`,
     `TearDownTestSuite`, `Benchmark`, `ExitCode`), `codeFilePath`, `lineNumber`, `namespace`, `testClass`, `testGroup`, `traits`,
     and `testProperties`, the CTest test properties). The latest 32 discoveries are kept.
+  * `GetSolutionExecutables()` (since 0.23.0): `solution` (`fullName`, `settingsFile`, `settingsFileExists`) and
+    `projects` (`name`, `projectFile`, `configuration`, `output`, `isTestProject`, `isTestContainer`, `error`, and
+    `executable` with the members of `CheckExecutable()` for `.exe` outputs). `Automation/VisualStudioEnvironment.cs`
+    determines the outputs as Test Explorer's `ProjectDataImpl` does for projects not based on CPS (e.g. C++): the key
+    output of the active configuration's `Built` output group (`IVsProjectCfg2.OpenOutputGroup()`), and MSBuild property
+    `IsTestProject` (`IVsBuildPropertyStorage`; Test Explorer ignores outputs of projects setting it to false).
+    Solution folders report the type `{66A26722-8FB5-11D2-AA7E-00C04F688DDE}` (not the `.sln` file's `{2150E333-...}`).
+  * `GetTestOutput(maxLines)` (since 0.23.0): `available`, `lineCount`, `text` of the Output window's *Tests* pane
+    (`{B85579AA-8BE0-4C4F-A850-90902B317581}`, written by Test Explorer's `TestWindowOutputWindowLogger` and
+    `OutputChannelStoreLogger`). The text is read from the pane's text view (`IVsUserData` with
+    `DefGuidList.guidIWpfTextViewHost`, the editor's interfaces used by reflection), or from `IVsTextLines`. Visual
+    Studio creates the view only when the pane is shown, so the pane is shown if necessary (`Activate()`, Output window
+    `ShowNoActivate()`) and read again while yielding to the UI thread. The DTE's `OutputWindowPanes` are empty out of
+    process in VS 2026.
 
-  COM calls arrive on VS's UI thread, so the methods must stay quick. When calling from PowerShell, look up `DTE.Properties`
-  items within one call: PowerShell unrolls a returned `Properties` collection into an array.
+  Calls of other processes arrive on background (RPC) threads, not on VS's UI thread (observed with VS 2019, 2022, and
+  2026): code needing VS services switches to the UI thread (`VisualStudioEnvironment`, behind
+  `IVisualStudioEnvironment` for the tests). Methods are only added at the end of `IGoogleTestAdapterAutomation` (the
+  interface is dual), with the GTA version in the agent script's `$methodVersions`. Callers (agents) correct their
+  calls from the messages: wrong arguments throw `ArgumentException`s, whose messages are reported without the type's
+  name and say what to pass (e.g. relative paths are rejected, since callers have other working directories). While VS
+  shows a modal dialog (e.g. GTA's warning about Microsoft's adapter), it rejects calls (`RPC_E_CALL_REJECTED`). When
+  calling from PowerShell, look up `DTE.Properties` items within one call: PowerShell unrolls a returned `Properties`
+  collection into an array.
+* <a name="agent-plugin"></a>**Agent plugin** (`agent-plugin/`): one skill, `google-test-adapter`, which agents
+  (Claude Code, Codex, GitHub Copilot in Visual Studio, VS Code, and its CLI) load when users have problems with tests in
+  Test Explorer. It follows the [Agent Skills](https://agentskills.io/specification) standard, so that the same folder
+  works for all of them: only `name` and `description` in the front matter, nothing particular to one agent. Its
+  script `scripts/gta.ps1` wraps the automation object (Windows PowerShell, since DTE needs .NET Framework; it restarts
+  itself from PowerShell 7). It finds Visual Studio instances in the Running Object Table (`GetActiveObject` would
+  return an arbitrary one), prints one JSON object per command (unescaping `'<>&`, which .NET's serializer escapes),
+  and makes every mistake of a caller an error saying what to do instead (exit code 1; 2 if GTA reported errors):
+  parameters are strings and unknown arguments are collected, since PowerShell's own errors are not JSON. When VS does
+  not respond for 10 s, it describes VS's dialogs via UI Automation, since only the user can answer them. The
+  marketplace (`.claude-plugin/marketplace.json`) is read by Claude Code, Copilot CLI, and Codex; Codex also reads
+  `.codex-plugin/plugin.json`. Agents without plugins (e.g. Copilot in Visual Studio) read skill folders
+  (`~/.copilot/skills`, `~/.claude/skills`, `~/.agents/skills`): `gh skill install` copies the skill from the latest
+  release's tag, and releases contain it as `google-test-adapter-skill-<version>.zip`. `AgentPluginTests` checks that the
+  manifests agree with each other and with GTA's version, that the front matter follows the standard, that
+  `references/settings.md` lists every element of the settings schema and every option, and that the script's options
+  pages, enumerations, and automation methods are GTA's. Check the plugin with `claude plugin validate .`, and the
+  script against VS 2019, 2022, and 2026 (experimental instances: `VSIXInstaller.exe /rootSuffix:Exp`, then
+  `devenv.exe <solution> /rootSuffix Exp`; this works while the user's instance is running).
 * **Run settings** (`VsPackage.Shared/Settings/RunSettingsService.cs`): Test Explorer calls this MEF component on
   background threads for every discovery and run; it must never wait for the UI thread.
   `VisualStudioConfigurationTracker` keeps solution and configuration up to date on the UI thread. Exceptions must not

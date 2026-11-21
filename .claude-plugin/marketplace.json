@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "google-test-adapter",
+  "description": "Google Test Adapter's agent plugin, for diagnosing and configuring the Google Test and Google Benchmark tests of Visual Studio solutions.",
+  "owner": {
+    "name": "David Bailey",
+    "url": "https://github.com/snargit"
+  },
+  "plugins": [
+    {
+      "name": "google-test-adapter",
+      "description": "Diagnose and configure Google Test Adapter, which shows and runs Google Test tests and Google Benchmark benchmarks in Visual Studio's Test Explorer.",
+      "source": "./agent-plugin",
+      "category": "development"
+    }
+  ]
+}

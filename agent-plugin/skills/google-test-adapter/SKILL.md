@@ -29,8 +29,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "<this skill's folder>\scrip
 | `discover <exe>` | Lists the tests of an executable as GTA does (runs it with `--gtest_list_tests` or `--benchmark_list_tests`) |
 | `output [<lines>]` | The end of the Output window's *Tests* pane, where Test Explorer and GTA log (GTA 0.23.0 or later; default 200 lines) |
 | `options [<page>]` | GTA's options (Tools > Options > Google Test Adapter) |
-| `set-option <page> <name> <value>` | Changes one of GTA's options; **ask the user first**, options apply to all their solutions |
+| `set-option <page> <name> <value>` | Changes one of GTA's options (`""` clears a string option); **ask the user first**, options apply to all their solutions |
 
+- Just call the commands: if the installed GTA lacks a method a command needs (the versions in the table are those
+  of releases; development builds may report other versions), the script says so.
 - Exit code 0: success. 1: the script couldn't do what was asked; `error` says why and how to call it instead (e.g. the
   usage of the command). 2: GTA reported errors, see `messages` (and `discoveryMessages`); warnings are there as well.
 - With several Visual Studio instances, add `-ProcessId <pid>` or `-Solution <name or path of the .sln>`.
@@ -59,6 +61,12 @@ file, read its first lines: tools that generate solutions may generate it too (e
 overwrites this file"); then change the tool's input or ask the user.** Settings take effect at the next discovery or
 run; see "Test Explorer does not pick up changes" below.
 
+**Where a value comes from:** `gta.ps1 settings <exe>` shows the merged values and which project settings matched
+(`projectSettings.projectRegex`), not where each value comes from. Look for the setting from the highest priority down:
+the matching project settings, then `<SolutionSettings>`, in the `.runsettings` file selected in Test Explorer (if
+any) and in the solution settings file (`gta.ps1 executables` shows its path, `solution.settingsFile`), then
+`gta.ps1 options`.
+
 ## Tests or benchmarks don't show up in Test Explorer
 
 Work through these in order, and tell the user what you found at each step.
@@ -78,14 +86,18 @@ Work through these in order, and tell the user what you found at each step.
 3. **Does GTA recognize it?** `executable.wouldBeDiscovered` (or `gta.ps1 check <exe>`):
    - `testDiscoveryRegex` is set and `googleTestIndicator` is null: the regex doesn't match the executable's full path.
      **A discovery regex replaces GTA's own detection**: executables that don't match are ignored even if they are
-     test executables. Extend the regex (where it is set: options or a settings file) or remove it.
+     test executables. Find where it is set (see "Where a value comes from" below), then extend it or remove it.
+     If it is a global option, it applies to all the user's solutions (it may be there for other solutions): offer
+     the choice of clearing it, extending it (combining regexes with `|`), or setting a regex for this solution in its
+     settings file instead.
    - No regex, `googleTestIndicator` null: GTA didn't find Google Test or Google Benchmark in the executable (e.g.
      unusual linking). Create an empty file `<executable>.is_google_test` next to it, or set a regex.
    - `trust.isTrusted` false: Windows considers the file to come from another computer (downloaded, or on a network
      drive: `trust.isOnNetworkDrive`). Unblock the file (file properties), or the user can set the global option
      *Skip check of file origin* (`SkipOriginCheck` on page `General`); it is security relevant and only works as global
      option, so ask.
-4. **Can GTA list the tests?** `gta.ps1 discover <exe>`: `status`, `discoveryMessages` and `tests`.
+4. **Can GTA list the tests?** `gta.ps1 discover <exe>`: `status`, `discoveryMessages` and `tests`. It only runs
+   executables GTA would discover (step 3); to check that an executable lists its tests anyway, run it yourself.
    - Exit code or crash messages: run the executable yourself with `--gtest_list_tests` (or `--benchmark_list_tests`)
      in the working directory from `gta.ps1 settings <exe>` (`discovery.workingDir`).
    - Missing DLLs (exit code -1073741515, 0xC0000135): add their folders to *PATH extension* (`<PathExtension>`).

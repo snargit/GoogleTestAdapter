@@ -4,9 +4,16 @@ Shows how scripts and MCP servers can use Google Test Adapter's automation objec
 
 .DESCRIPTION
 Connects to a running Visual Studio (or starts one), optionally opens a solution, and prints the results of the
-methods of GTA's automation object DTE.GetObject("GoogleTestAdapter") for the given executable, and some of GTA's
-options (DTE.Properties). Run it with Windows PowerShell; all results are JSON strings.
+methods of GTA's automation object DTE.GetObject("GoogleTestAdapter") for the given executable (by default, the first
+of the solution's executables GTA would discover), and some of GTA's options (DTE.Properties). Run it with Windows
+PowerShell; all results are JSON strings.
 
+For agents and scripts, the agent skill's script agent-plugin\skills\google-test-adapter\scripts\gta.ps1 wraps all of
+this: it selects among several running Visual Studio instances, prints one JSON object per command, describes dialogs
+which keep Visual Studio from responding, and answers wrong calls with errors saying what to do instead.
+
+.EXAMPLE
+.\AutomationExample.ps1 -Solution ..\SampleTests\SampleTests.sln
 .EXAMPLE
 .\AutomationExample.ps1 -Solution ..\SampleTests\SampleTests.sln -Executable ..\out\binaries\SampleTests\Debug\Tests_gta.exe
 #>
@@ -27,6 +34,16 @@ function Invoke-Com([scriptblock]$Call) {
             if ($i -lt 120 -and $_.Exception.ToString() -match '0x80010001|0x8001010A') { Start-Sleep -Milliseconds 500; continue }
             throw
         }
+    }
+}
+
+# methods added after GTA 0.21.0 are missing from older versions (DISP_E_UNKNOWNNAME)
+function Invoke-Gta([string]$Method, [object[]]$Arguments, [string]$Version) {
+    try {
+        return Invoke-Com { $gta.GetType().InvokeMember($Method, [Reflection.BindingFlags]::InvokeMethod, $null, $gta, $Arguments) }
+    } catch {
+        if ($_.Exception.ToString() -match '0x80020006|Unknown name') { return "($Method() requires Google Test Adapter $Version or later)" }
+        throw
     }
 }
 
@@ -57,7 +74,25 @@ try {
     ""
     "GetRunSettings(`$null):"
     Invoke-Com { $gta.GetRunSettings($null) }
+    ""
+    # the outputs of the solution's projects as Test Explorer gives them to the test adapters, and what GTA makes of them
+    "GetSolutionExecutables():"
+    $executables = Invoke-Gta "GetSolutionExecutables" @() "0.23.0"
+    if ($executables.StartsWith("{")) {
+        $projects = @(($executables | ConvertFrom-Json).projects)
+        foreach ($project in $projects) {
+            $verdict = if ($project.executable) { "$($project.executable.testFramework), would be discovered: $($project.executable.wouldBeDiscovered)" } else { "no executable" }
+            "  $($project.name) ($($project.configuration)): $(if ($project.output) { $project.output } else { $project.error }) - $verdict"
+        }
+        if (!$Executable) {
+            $Executable = ($projects | Where-Object { $_.executable.wouldBeDiscovered } | Select-Object -First 1).output
+        }
+    } else {
+        $executables
+    }
+
     if ($Executable) {
+        # GTA needs full paths
         $Executable = [IO.Path]::GetFullPath($Executable)
         ""
         "GetEffectiveSettings('$Executable'):"
@@ -80,6 +115,17 @@ try {
             $result.discoveryMessages | ForEach-Object { "  $($_.severity): $($_.message)" }
             $result.tests | Select-Object -First 3 | ForEach-Object { "  $($_.fullyQualifiedName) ($($_.kind)) at $($_.codeFilePath):$($_.lineNumber)" }
         }
+    }
+
+    ""
+    # what Test Explorer and GTA have logged (GTA shows the pane in the Output window if necessary)
+    "GetTestOutput(20):"
+    $output = Invoke-Gta "GetTestOutput" @(20) "0.23.0"
+    if ($output.StartsWith("{")) {
+        $output = $output | ConvertFrom-Json
+        if ($output.available) { $output.text } else { $output.messages | ForEach-Object { "  $($_.severity): $($_.message)" } }
+    } else {
+        $output
     }
 
     ""

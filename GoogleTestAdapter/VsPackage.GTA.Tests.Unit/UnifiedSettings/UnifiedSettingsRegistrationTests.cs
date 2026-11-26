@@ -77,6 +77,19 @@ namespace GoogleTestAdapter.VsPackage.UnifiedSettings
 
         [TestMethod]
         [TestCategory(Unit)]
+        public void CategoryTitles_FitTheSettingsTree()
+        {
+            // the tree of the settings UI truncates titles longer than about 40 characters (at the default font, at the
+            // depth of GTA's groups)
+            string manifest = GenerateManifest();
+            string categories = manifest.Substring(manifest.IndexOf("\"categories\"", StringComparison.Ordinal));
+            var titles = Regex.Matches(categories, @"""title"": ""([^""]*)""").Cast<Match>().Select(m => m.Groups[1].Value).ToList();
+            titles.Should().Contain("Run configuration");
+            titles.Should().OnlyContain(t => t.Length <= 30, "titles must fit the settings UI's tree");
+        }
+
+        [TestMethod]
+        [TestCategory(Unit)]
         public void Monikers_FollowPagesAndCategories()
         {
             var options = GetOptions();
@@ -352,7 +365,14 @@ namespace GoogleTestAdapter.VsPackage.UnifiedSettings
                 int categoryOrder = 0;
                 foreach (var category in page.GroupBy(CategoryMoniker))
                 {
-                    categories.Add(category.Key, new JsonObject { { "title", category.First().Category }, { "order", categoryOrder++ } });
+                    // the settings UI's tree truncates long titles: a remark in parentheses becomes the description,
+                    // e.g. "Run configuration (also applies to test discovery)"
+                    Match remark = Regex.Match(category.First().Category, @"^(.+?) \((.+)\)$");
+                    var registration = new JsonObject { { "title", remark.Success ? remark.Groups[1].Value : category.First().Category } };
+                    if (remark.Success)
+                        registration.Add("description", char.ToUpperInvariant(remark.Groups[2].Value[0]) + remark.Groups[2].Value.Substring(1) + ".");
+                    registration.Add("order", categoryOrder++);
+                    categories.Add(category.Key, registration);
                 }
             }
 

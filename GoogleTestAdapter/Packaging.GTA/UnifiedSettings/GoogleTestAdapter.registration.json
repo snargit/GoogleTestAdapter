@@ -834,7 +834,8 @@
       "order": 0
     },
     "googleTestAdapter.testExecution.runConfiguration": {
-      "title": "Run configuration (also applies to test discovery)",
+      "title": "Run configuration",
+      "description": "Also applies to test discovery.",
       "order": 1
     },
     "googleTestAdapter.testExecution.setupAndTeardown": {

@@ -238,6 +238,9 @@ cd out/binaries/GoogleTestAdapter/Release
     was at build time.
   * Monikers are `googleTestAdapter.<page>.<group>.<property>`; they are stored in users' `settings.json`, so never
     change them.
+  * The settings UI's tree truncates titles (at about 40 characters with the default font): a group's remark in
+    parentheses becomes its description (*Run configuration*, "Also applies to test discovery."), and a test keeps
+    group titles at 30 characters or less.
   * Values: DialogPage stores options in the SettingsManager store at `<page type>.<property>` (in `privateregistry.bin`;
     bools, ints and strings as such, enums as their numbers), which the manifest migrates from (`pass`,
     `enumIntegerToString`) with `"mode": "full"`: VS also writes changes back (enums as `Int64`, which DialogPage

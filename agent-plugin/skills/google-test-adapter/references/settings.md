@@ -51,6 +51,18 @@ Lists use separators: `;` for paths (*PATH extension*, *Additional PDBs*), `//||
 variables* (`A=1//||//B=2`), *Source path mapping* (`C:\build=>$(SolutionDir)//||//...`), and traits
 (`MySuite\..*///Type,Small//||//Other\..*///Type,Large`).
 
+## Options in Visual Studio 2026
+
+Visual Studio 2026 (and 2022 17.14 with its preview feature *Unified Settings*) shows GTA's options in its new settings
+UI (Tools > Options > Google Test Adapter, with the same pages), and keeps their values in
+`%LOCALAPPDATA%\Microsoft\VisualStudio\18.0_<instance>\settings.json`, which only lists values that differ from the
+defaults. An option's key there is `googleTestAdapter.<page>.<group>.<DTE name, first letter lower-case>`, e.g.
+`googleTestAdapter.testDiscovery.misc.testDiscoveryRegex`; search the file for `googleTestAdapter.` to see which
+options a user has changed. To change options, use `gta.ps1 set-option`, which works in all versions and validates
+the value: Visual Studio replaces a `settings.json` that isn't valid JSON (keeping the old file as
+`settings.backup<n>.json`), and GTA ignores invalid values from it (e.g. a regex that doesn't parse), with a message in
+the Tests pane (`gta.ps1 output`).
+
 ## General
 
 | Option | DTE name | XML element | Default | Meaning |

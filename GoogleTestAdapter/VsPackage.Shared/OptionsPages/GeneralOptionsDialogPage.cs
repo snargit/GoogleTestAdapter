@@ -19,6 +19,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryOutputName)]
         [DisplayName(SettingsWrapper.OptionPrintTestOutput)]
         [Description(SettingsWrapper.OptionPrintTestOutputDescription)]
+        [UnifiedSetting("googleTestAdapter.general.output.printTestOutput")]
         public bool PrintTestOutput
         {
             get => _printTestOutput;
@@ -29,6 +30,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryOutputName)]
         [DisplayName(SettingsWrapper.OptionOutputMode)]
         [Description(SettingsWrapper.OptionOutputModeDescription)]
+        [UnifiedSetting("googleTestAdapter.general.output.outputMode")]
         public OutputMode OutputMode
         {
             get => _outputMode;
@@ -40,6 +42,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [DisplayName(SettingsWrapper.OptionTimestampOutput)]
         [Description(SettingsWrapper.OptionTimestampOutputDescription)]
         [PropertyPageTypeConverter(typeof(TimestampModeConverter))]
+        [UnifiedSetting("googleTestAdapter.general.output.timestampMode")]
         public TimestampMode TimestampMode
         {
             get => _timestampMode;
@@ -51,6 +54,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [DisplayName(SettingsWrapper.OptionSeverityMode)]
         [Description(SettingsWrapper.OptionSeverityModeDescription)]
         [PropertyPageTypeConverter(typeof(SeverityModeConverter))]
+        [UnifiedSetting("googleTestAdapter.general.output.severityMode")]
         public SeverityMode SeverityMode
         {
             get => _severityMode;
@@ -62,6 +66,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [DisplayName(SettingsWrapper.OptionSummaryMode)]
         [Description(SettingsWrapper.OptionSummaryModeDescription)]
         [PropertyPageTypeConverter(typeof(SummaryModeConverter))]
+        [UnifiedSetting("googleTestAdapter.general.output.summaryMode")]
         public SummaryMode SummaryMode
         {
             get => _summaryMode;
@@ -72,6 +77,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryOutputName)]
         [DisplayName(SettingsWrapper.OptionPrefixOutputWithGta)]
         [Description(SettingsWrapper.OptionPrefixOutputWithGtaDescription)]
+        [UnifiedSetting("googleTestAdapter.general.output.prefixOutputWithGta")]
         public bool PrefixOutputWithGta
         {
             get => _prefixOutputWithGta;
@@ -86,6 +92,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategorySecurityName)]
         [DisplayName(SettingsWrapper.OptionSkipOriginCheck)]
         [Description(SettingsWrapper.OptionSkipOriginCheckDescription)]
+        [UnifiedSetting("googleTestAdapter.general.security.skipOriginCheck")]
         public bool SkipOriginCheck
         {
             get => _skipOriginCheck;

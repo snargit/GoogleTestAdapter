@@ -15,6 +15,8 @@ describes the code base as it was before the fork.
   tests only).
 * Since 0.23.0: an agent plugin with a skill for diagnosing and configuring GTA (see
   [Agent plugin](#agent-plugin) below), and the automation object's `GetSolutionExecutables()` and `GetTestOutput()`.
+* Not released yet: GTA's options in Visual Studio's new settings UI (Unified Settings) of VS 2026 and VS 2022 17.14
+  (see [Unified Settings](#unified-settings) below).
 * Supported: Visual Studio 2017 to 2026, .NET Framework 4.6. Visual Studio 2013/2015 support has been dropped.
 * Known gap: the end-to-end tests (`VsPackage.Tests`, `VsPackage.Tests.Generated`, category `End to end`) compare the
   complete console output of test runs with expected files, which have not been updated for the fork's changes (e.g.
@@ -219,6 +221,43 @@ cd out/binaries/GoogleTestAdapter/Release
   `…ToggleParallelTestExecution`, and `…TogglePrintTestOutput` (`CanonicalName` in the `.vsct`), e.g. for
   `DTE.ExecuteCommand`. To check out of process, get the DTE of a running VS from PowerShell with
   `[Runtime.InteropServices.Marshal]::GetActiveObject("VisualStudio.DTE.18.0")` (retry calls VS rejects while busy).
+* <a name="unified-settings"></a>**Unified Settings** (VS 2026's Tools > Options, VS 2022 17.10+ as preview feature):
+  GTA's options are registered in `Packaging.GTA/UnifiedSettings/GoogleTestAdapter.registration.json` (schema:
+  `Common7\IDE\UnifiedSettings\registration.schema.json` of VS 2026; Microsoft's own manifests, e.g. Test Explorer's
+  `CommonExtensions\Microsoft\TestWindow\UnifiedSettings\TestSettings.registration.json`, are the best examples).
+  * Registration (`VsPackage.GTA/UnifiedSettings/`): `ProvideUnifiedSettingsManifestAttribute` writes
+    `SettingsManifests\{package}` with `ManifestPath` and a `CacheTag` (the build time; VS only reads the manifest
+    again when it changes), `ProvideOptionPageInUnifiedSettingsAttribute` adds `IsInUnifiedSettings=1` to the old pages,
+    which VS hides while it shows its new settings UI. The VS 2017 SDK lacks Microsoft's attributes; older VS ignore the
+    keys.
+  * The manifest is **generated** by `UnifiedSettingsRegistrationTests` from the options pages (the `[UnifiedSetting]`
+    moniker and constraints of each property), `SettingsWrapper`'s texts and defaults, and the generated pkgdef (page
+    GUIDs). After changing options: build, run the tests with `GTA_UPDATE_UNIFIED_SETTINGS=1` (writes the file), and
+    **build again** - the VSIX contains the file as it was at build time.
+  * Monikers are `googleTestAdapter.<page>.<group>.<property>`; they are stored in users' `settings.json`, so never
+    change them.
+  * Values: DialogPage stores options in the SettingsManager store at `<page type>.<property>` (in `privateregistry.bin`;
+    bools, ints and strings as such, enums as their numbers), which the manifest migrates from (`pass`,
+    `enumIntegerToString`) with `"mode": "full"`: VS also writes changes back (enums as `Int64`, which DialogPage
+    converts), so the old store stays current for VS 2022 without the preview and for downgrades. VS migrates each
+    setting once, and again when its migration rule changes (not when only the cache tag changes). Unified Settings'
+    values are in `%LOCALAPPDATA%\Microsoft\VisualStudio\<version>_<instance>\settings.json` (only non-defaults); VS
+    follows external edits, and replaces the file by `{}` if it is no valid JSON (keeping `settings.backup<n>.json`).
+  * Runtime (`VsPackage.Shared/OptionsPages/UnifiedSettingsBridge.cs`): DialogPage (VS 2022 17.14+) reads and writes an
+    option in Unified Settings, and follows its changes, if the option's property descriptor carries VS's
+    `UnifiedSettingsMonikerAttribute` (public in VS 2026's Shell.15.0, internal in VS 2022's
+    `Microsoft.Internal.VisualStudio.Shell.Framework`), found by reflection. DialogPage gets the descriptors from
+    `TypeDescriptor`, so `NotifyingDialogPage` implements `ICustomTypeDescriptor` (the VS 2017 SDK's DialogPage has no
+    overridable `PropertyCollection`). The descriptors must forward `AddValueChanged`: DialogPage saves an option when
+    the page notifies a change (DTE, toolbar commands). While VS shows its new settings UI instead of the pages (VS
+    2026; VS 2022 with the preview feature, UI context `13b56f17-0b98-4a51-a9a0-9767d84796da`), they ignore values the
+    setters reject (the settings UI can't validate regexes, nor does VS enforce `minimum` for edits of `settings.json`),
+    and the package reports them to the activity log and the Tests pane; otherwise the pages' property grid uses them,
+    and shows the setters' errors. Constraints the manifest can express (`minimum`, `maximum`, `maxLength`) must match
+    the setters (a test checks this).
+  * VS 2022 17.14 activates Unified Settings (`KnownUIContexts.UnifiedSettingsActiveContext`) even when its preview
+    feature is off (and the stable channel doesn't offer it: "no preview features available"); it reads GTA's manifest
+    then, but shows the old pages.
 * **Automation object** (`VsPackage.Shared/Automation/`): `DTE.GetObject("GoogleTestAdapter")` (registered with
   `ProvideAutomationObject`, created by the package's `GetAutomationObject()`) provides what an MCP server can not get
   from Test Explorer; the agent skill's script (see [Agent plugin](#agent-plugin)) and `Tools/AutomationExample.ps1`
@@ -360,7 +399,8 @@ cd out/binaries/GoogleTestAdapter/Release
 An option is wired through all of these (search for an existing option such as `TestTimeoutInSeconds`):
 `Core/Settings/IGoogleTestAdapterSettings.cs` (property and merging), `Core/Settings/RunSettings.cs` (property and
 `ShouldSerialize...`), `Core/Settings/SettingsWrapper.cs` (name, description, default, property),
-`TestAdapter/GoogleTestAdapterSettings.xsd`, the options page in `VsPackage.Shared/OptionsPages/`,
+`TestAdapter/GoogleTestAdapterSettings.xsd`, the options page in `VsPackage.Shared/OptionsPages/` (with a
+`[UnifiedSetting]` moniker; then regenerate the Unified Settings manifest, see [Unified Settings](#unified-settings)),
 `VsPackage.Shared/GoogleTestExtensionOptionsPage.cs` (`GetRunSettingsFromOptionPages`), `Tests.Common/TestsBase.cs`
 (mock default), the README, and the release notes. Placeholders such as `$(SolutionDir)` are replaced by
 `Core/Settings/PlaceholderReplacer.cs`.

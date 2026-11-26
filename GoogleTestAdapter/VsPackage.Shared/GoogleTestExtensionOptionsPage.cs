@@ -88,6 +88,9 @@ namespace GoogleTestAdapter.VsPackage
 
         private void InitializeOptions()
         {
+            // before the pages are created, which loads their values
+            UnifiedSettingsBridge.InvalidValueHandler = ReportInvalidOptionValue;
+
             _generalOptions = (GeneralOptionsDialogPage) GetDialogPage(typeof(GeneralOptionsDialogPage));
             _testDiscoveryOptions =
                 (TestDiscoveryOptionsDialogPage) GetDialogPage(typeof(TestDiscoveryOptionsDialogPage));
@@ -109,6 +112,33 @@ namespace GoogleTestAdapter.VsPackage
             _testDiscoveryOptions.PropertyChanged += OptionsChanged;
             _testExecutionOptions.PropertyChanged += OptionsChanged;
             _googleTestOptions.PropertyChanged += OptionsChanged;
+        }
+
+        // Values from Visual Studio's settings (e.g. its Unified Settings UI, or settings.json), which can't validate
+        // e.g. regexes as the options pages do
+        private void ReportInvalidOptionValue(PropertyDescriptor option, object value, string error)
+        {
+            string message = $"{Common.Strings.Instance.ExtensionName}: ignored the value '{value}' of option " +
+                             $"'{option.DisplayName}' from Visual Studio's settings, since it is invalid: {error.Trim()}" +
+                             $"{Environment.NewLine}The option keeps its previous value; correct it in Tools > Options > " +
+                             $"{OptionsCategoryName}.";
+            new ActivityLogLogger(this, () => OutputMode.Verbose).LogError(message);
+
+            _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                try
+                {
+                    var outputWindow = GetService(typeof(SVsOutputWindow)) as IVsOutputWindow;
+                    Guid testsPane = GoogleTestAdapterAutomation.TestsOutputPane;
+                    if (outputWindow != null && ErrorHandler.Succeeded(outputWindow.GetPane(ref testsPane, out IVsOutputWindowPane pane)) && pane != null)
+                        pane.OutputStringThreadSafe(message + Environment.NewLine);
+                }
+                catch (Exception)
+                {
+                    // logged to the activity log
+                }
+            });
         }
 
         private void InitializeCommands()

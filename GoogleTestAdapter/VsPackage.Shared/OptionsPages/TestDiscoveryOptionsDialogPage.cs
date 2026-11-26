@@ -18,6 +18,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryMiscName)]
         [DisplayName(SettingsWrapper.OptionTestDiscoveryRegex)]
         [Description(SettingsWrapper.OptionTestDiscoveryRegexDescription)]
+        [UnifiedSetting("googleTestAdapter.testDiscovery.misc.testDiscoveryRegex")]
         public string TestDiscoveryRegex
         {
             get => _testDiscoveryRegex;
@@ -32,6 +33,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryMiscName)]
         [DisplayName(SettingsWrapper.OptionTestDiscoveryTimeoutInSeconds)]
         [Description(SettingsWrapper.OptionTestDiscoveryTimeoutInSecondsDescription)]
+        [UnifiedSetting("googleTestAdapter.testDiscovery.misc.testDiscoveryTimeoutInSeconds", Minimum = 0)]
         public int TestDiscoveryTimeoutInSeconds
         {
             get => _testDiscoveryTimeoutInSeconds;
@@ -47,6 +49,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryMiscName)]
         [DisplayName(SettingsWrapper.OptionTestNameSeparator)]
         [Description(SettingsWrapper.OptionTestNameSeparatorDescription)]
+        [UnifiedSetting("googleTestAdapter.testDiscovery.misc.testNameSeparator", MaxLength = 16)]
         public string TestNameSeparator
         {
             get => _testNameSeparator;
@@ -62,6 +65,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryMiscName)]
         [DisplayName(SettingsWrapper.OptionParseSymbolInformation)]
         [Description(SettingsWrapper.OptionParseSymbolInformationDescription)]
+        [UnifiedSetting("googleTestAdapter.testDiscovery.misc.parseSymbolInformation")]
         public bool ParseSymbolInformation
         {
             get => _parseSymbolInformation;
@@ -72,6 +76,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryMiscName)]
         [DisplayName(SettingsWrapper.OptionTearDownTestSuiteTestCases)]
         [Description(SettingsWrapper.OptionTearDownTestSuiteTestCasesDescription)]
+        [UnifiedSetting("googleTestAdapter.testDiscovery.misc.tearDownTestSuiteTestCases")]
         public bool TearDownTestSuiteTestCases
         {
             get => _tearDownTestSuiteTestCases;
@@ -82,6 +87,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryMiscName)]
         [DisplayName(SettingsWrapper.OptionAdditionalTestDiscoveryParams)]
         [Description(SettingsWrapper.OptionAdditionalTestDiscoveryParamsDescription)]
+        [UnifiedSetting("googleTestAdapter.testDiscovery.misc.additionalTestDiscoveryParams")]
         public string AdditionalTestDiscoveryParams
         {
             get => _additionalTestDiscoveryParams;
@@ -96,6 +102,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryTraitsName)]
         [DisplayName(SettingsWrapper.OptionTraitsRegexesBefore)]
         [Description(SettingsWrapper.OptionTraitsDescription)]
+        [UnifiedSetting("googleTestAdapter.testDiscovery.traits.traitsRegexesBefore")]
         public string TraitsRegexesBefore
         {
             get => _traitsRegexesBefore;
@@ -110,6 +117,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryTraitsName)]
         [DisplayName(SettingsWrapper.OptionTraitsRegexesAfter)]
         [Description(SettingsWrapper.OptionTraitsDescription)]
+        [UnifiedSetting("googleTestAdapter.testDiscovery.traits.traitsRegexesAfter")]
         public string TraitsRegexesAfter
         {
             get => _traitsRegexesAfter;

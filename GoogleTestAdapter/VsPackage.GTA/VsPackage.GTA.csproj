@@ -82,6 +82,7 @@
     <Compile Include="ReleaseNotes\ReleaseNotesTheme.cs" />
     <Compile Include="ReleaseNotes\VersionProvider.cs" />
     <Compile Include="ReleaseNotes\History.cs" />
+    <Compile Include="UnifiedSettings\UnifiedSettingsRegistrationAttributes.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Key.snk" />

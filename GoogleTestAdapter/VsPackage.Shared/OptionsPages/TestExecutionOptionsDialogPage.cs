@@ -24,6 +24,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryParallelizationName)]
         [DisplayName(SettingsWrapper.OptionEnableParallelTestExecution)]
         [Description(SettingsWrapper.OptionEnableParallelTestExecutionDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.parallelization.enableParallelTestExecution")]
         public bool EnableParallelTestExecution
         {
             get => _enableParallelTestExecution;
@@ -34,6 +35,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryParallelizationName)]
         [DisplayName(SettingsWrapper.OptionMaxNrOfThreads)]
         [Description(SettingsWrapper.OptionMaxNrOfThreadsDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.parallelization.maxNrOfThreads", Minimum = 0)]
         public int MaxNrOfThreads
         {
             get => _maxNrOfThreads;
@@ -53,12 +55,13 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionAdditionalPdbs)]
         [Description(SettingsWrapper.OptionAdditionalPdbsDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.runConfiguration.additionalPdbs")]
         public string AdditionalPdbs
         {
             get => _additionalPdbs;
             set
             {
-                var patterns = Utils.SplitAdditionalPdbs(_additionalPdbs);
+                var patterns = Utils.SplitAdditionalPdbs(value ?? "");
                 var errorMessages = new List<string>();
                 foreach (string pattern in patterns)
                 {
@@ -80,6 +83,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionWorkingDir)]
         [Description(SettingsWrapper.OptionWorkingDirDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.runConfiguration.workingDir")]
         public string WorkingDir
         {
             get => _workingDirectory;
@@ -90,6 +94,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionPathExtension)]
         [Description(SettingsWrapper.OptionPathExtensionDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.runConfiguration.pathExtension")]
         public string PathExtension
         {
             get => _pathExtension;
@@ -100,6 +105,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionEnvironmentVariables)]
         [Description(SettingsWrapper.OptionEnvironmentVariablesDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.runConfiguration.environmentVariables")]
         public string EnvironmentVariables
         {
             get => _environmentVariables;
@@ -114,6 +120,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionUseCTestTestProperties)]
         [Description(SettingsWrapper.OptionUseCTestTestPropertiesDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.runConfiguration.useCTestTestProperties")]
         public bool UseCTestTestProperties
         {
             get => _useCTestTestProperties;
@@ -124,6 +131,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionTestTimeoutInSeconds)]
         [Description(SettingsWrapper.OptionTestTimeoutInSecondsDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.runConfiguration.testTimeoutInSeconds", Minimum = 0)]
         public int TestTimeoutInSeconds
         {
             get => _testTimeoutInSeconds;
@@ -139,6 +147,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionBenchmarkDryRun)]
         [Description(SettingsWrapper.OptionBenchmarkDryRunDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.runConfiguration.benchmarkDryRun")]
         public bool BenchmarkDryRun
         {
             get => _benchmarkDryRun;
@@ -149,6 +158,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionSourcePathMapping)]
         [Description(SettingsWrapper.OptionSourcePathMappingDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.runConfiguration.sourcePathMapping")]
         public string SourcePathMapping
         {
             get => _sourcePathMapping;
@@ -163,6 +173,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionMapOnlyMissingSourcePaths)]
         [Description(SettingsWrapper.OptionMapOnlyMissingSourcePathsDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.runConfiguration.mapOnlyMissingSourcePaths")]
         public bool MapOnlyMissingSourcePaths
         {
             get => _mapOnlyMissingSourcePaths;
@@ -173,6 +184,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryRunConfigurationName)]
         [DisplayName(SettingsWrapper.OptionAdditionalTestExecutionParams)]
         [Description(SettingsWrapper.OptionAdditionalTestExecutionParamsDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.runConfiguration.additionalTestExecutionParams")]
         public string AdditionalTestExecutionParams
         {
             get => _additionalTestExecutionParams;
@@ -187,6 +199,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategorySetupAndTeardownName)]
         [DisplayName(SettingsWrapper.OptionBatchForTestSetup)]
         [Description(SettingsWrapper.OptionBatchForTestSetupDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.setupAndTeardown.batchForTestSetup")]
         public string BatchForTestSetup
         {
             get => _batchForTestSetup;
@@ -197,6 +210,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategorySetupAndTeardownName)]
         [DisplayName(SettingsWrapper.OptionBatchForTestTeardown)]
         [Description(SettingsWrapper.OptionBatchForTestTeardownDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.setupAndTeardown.batchForTestTeardown")]
         public string BatchForTestTeardown
         {
             get => _batchForTestTeardown;
@@ -211,6 +225,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryMiscName)]
         [DisplayName(SettingsWrapper.OptionKillProcessesOnCancel)]
         [Description(SettingsWrapper.OptionKillProcessesOnCancelDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.misc.killProcessesOnCancel")]
         public bool KillProcessesOnCancel
         {
             get => _killProcessesOnCancel;
@@ -222,6 +237,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [DisplayName(SettingsWrapper.OptionDebuggerKind)]
         [Description(SettingsWrapper.OptionDebuggerKindDescription)]
         [PropertyPageTypeConverter(typeof(DebuggerKindConverter))]
+        [UnifiedSetting("googleTestAdapter.testExecution.misc.debuggerKind")]
         public DebuggerKind DebuggerKind
         {
             get => _debuggerKind;
@@ -232,6 +248,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryMiscName)]
         [DisplayName(SettingsWrapper.OptionExitCodeTestCase)]
         [Description(SettingsWrapper.OptionExitCodeTestCaseDescription)]
+        [UnifiedSetting("googleTestAdapter.testExecution.misc.exitCodeTestCase")]
         public string ExitCodeTestCase
         {
             get => _exitCodeTestCase;
@@ -243,6 +260,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [DisplayName(SettingsWrapper.OptionMissingTestsReportMode)]
         [Description(SettingsWrapper.OptionMissingTestsReportModeDescription)]
         [PropertyPageTypeConverter(typeof(MissingTestsReportModeConverter))]
+        [UnifiedSetting("googleTestAdapter.testExecution.misc.missingTestsReportMode")]
         public MissingTestsReportMode MissingTestsReportMode
         {
             get => _missingTestsReportMode;

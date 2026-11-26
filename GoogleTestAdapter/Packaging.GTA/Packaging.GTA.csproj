@@ -146,6 +146,10 @@
       <IncludeInVSIX>true</IncludeInVSIX>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="UnifiedSettings\GoogleTestAdapter.registration.json">
+      <IncludeInVSIX>true</IncludeInVSIX>
+      <VSIXSubPath>UnifiedSettings</VSIXSubPath>
+    </Content>
     <Content Include="GoogleTestAdapter.VsPackage.GTA.pkgdef">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <IncludeInVSIX>true</IncludeInVSIX>

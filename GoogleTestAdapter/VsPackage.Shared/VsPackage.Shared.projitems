@@ -43,6 +43,8 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="$(MSBuildThisFileDirectory)OptionsPages\OptionsUpdater.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)OptionsPages\UnifiedSettingAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)OptionsPages\UnifiedSettingsBridge.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Settings\CodeCoverageRunSettings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Settings\RunSettingsService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Settings\SolutionPaths.cs" />

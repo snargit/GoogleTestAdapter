@@ -53,7 +53,8 @@ From highest to lowest priority, for each executable:
 1. project settings (`<ProjectSettings>`, matched by a regex on the executable's full path) of a `.runsettings` file
    selected in Test Explorer, then those of the solution settings file;
 2. solution settings (`<SolutionSettings>`) of the selected file, then those of the solution settings file;
-3. GTA's options (Tools > Options > Google Test Adapter).
+3. GTA's options (Tools > Options > Google Test Adapter; in Visual Studio 2026 they are in its new settings UI and
+   `settings.json`, see "Options in Visual Studio 2026" in `references/settings.md`).
 
 The solution settings file is `<solution name>.gta.runsettings` next to the `.sln`. It is usually under source control
 and shared, so change it only for settings the whole team needs, and keep it minimal. **Before editing any settings

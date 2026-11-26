@@ -17,6 +17,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryRuntimeBehaviorName)]
         [DisplayName(SettingsWrapper.OptionCatchExceptions)]
         [Description(SettingsWrapper.OptionCatchExceptionsDescription)]
+        [UnifiedSetting("googleTestAdapter.googleTest.runtimeBehavior.catchExceptions")]
         public bool CatchExceptions
         {
             get => _catchExceptions;
@@ -27,6 +28,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryRuntimeBehaviorName)]
         [DisplayName(SettingsWrapper.OptionBreakOnFailure)]
         [Description(SettingsWrapper.OptionBreakOnFailureDescription)]
+        [UnifiedSetting("googleTestAdapter.googleTest.runtimeBehavior.breakOnFailure")]
         public bool BreakOnFailure
         {
             get => _breakOnFailure;
@@ -41,6 +43,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryTestExecutionName)]
         [DisplayName(SettingsWrapper.OptionRunDisabledTests)]
         [Description(SettingsWrapper.OptionRunDisabledTestsDescription)]
+        [UnifiedSetting("googleTestAdapter.googleTest.testExecution.runDisabledTests")]
         public bool RunDisabledTests
         {
             get => _runDisabledTests;
@@ -51,6 +54,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryTestExecutionName)]
         [DisplayName(SettingsWrapper.OptionNrOfTestRepetitions)]
         [Description(SettingsWrapper.OptionNrOfTestRepetitionsDescription)]
+        [UnifiedSetting("googleTestAdapter.googleTest.testExecution.nrOfTestRepetitions", Minimum = -1)]
         public int NrOfTestRepetitions
         {
             get => _nrOfTestRepetitions;
@@ -66,6 +70,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryTestExecutionName)]
         [DisplayName(SettingsWrapper.OptionShuffleTests)]
         [Description(SettingsWrapper.OptionShuffleTestsDescription)]
+        [UnifiedSetting("googleTestAdapter.googleTest.testExecution.shuffleTests")]
         public bool ShuffleTests
         {
             get => _shuffleTests;
@@ -76,6 +81,7 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
         [Category(SettingsWrapper.CategoryTestExecutionName)]
         [DisplayName(SettingsWrapper.OptionShuffleTestsSeed)]
         [Description(SettingsWrapper.OptionShuffleTestsSeedDescription)]
+        [UnifiedSetting("googleTestAdapter.googleTest.testExecution.shuffleTestsSeed", Minimum = GoogleTestConstants.ShuffleTestsSeedMinValue, Maximum = 99999)]
         public int ShuffleTestsSeed
         {
             get => _shuffleTestsSeed;

@@ -89,6 +89,7 @@
   </Choose>
   <ItemGroup>
     <Compile Include="AgentPlugin\AgentPluginTests.cs" />
+    <Compile Include="UnifiedSettings\UnifiedSettingsRegistrationTests.cs" />
     <Compile Include="Automation\GoogleTestAdapterAutomationTests.cs" />
     <Compile Include="Debugging\MessageBasedDebuggerAttacherTests.cs" />
     <Compile Include="Debugging\DebuggerAttacherServiceTests.cs" />

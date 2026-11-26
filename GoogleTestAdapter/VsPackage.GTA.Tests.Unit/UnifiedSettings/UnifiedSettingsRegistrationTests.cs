@@ -131,6 +131,12 @@ namespace GoogleTestAdapter.VsPackage.UnifiedSettings
             foreach (var page in Pages)
             {
                 pkgdef.Should().Contain($"[$RootKey$\\ToolsOptionsPages\\{CategoryName}\\{page.Name}]\r\n\"IsInUnifiedSettings\"=dword:00000001");
+                // the manifest refers to the page's GUID, which must not depend on the assembly's version (as it does
+                // without GuidAttribute), since CI builds stamp their own versions
+                string source = File.ReadAllText(Path.Combine(SourceDir, "VsPackage.Shared", "OptionsPages", page.TypeName + ".cs"));
+                Match guid = Regex.Match(source, $@"\[Guid\(""([0-9a-f-]+)""\)\]\s*public class {page.TypeName}\b");
+                guid.Success.Should().BeTrue($"{page.TypeName} has a GuidAttribute");
+                GetPageGuid(pkgdef, page.Name).Should().Be(guid.Groups[1].Value);
             }
 
             string project = File.ReadAllText(Path.Combine(PackagingDir, "Packaging.GTA.csproj"));

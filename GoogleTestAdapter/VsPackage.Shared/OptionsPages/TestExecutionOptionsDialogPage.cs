@@ -17,6 +17,8 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
 {
 
     [ComVisible(true)]
+    // the page's GUID would otherwise depend on the assembly's version; the Unified Settings manifest refers to it
+    [Guid("837bf16b-f9b8-4c9d-9be9-b700f7864fb7")]
     public class TestExecutionOptionsDialogPage : NotifyingDialogPage
     {
         #region Parallelization

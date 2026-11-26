@@ -788,7 +788,7 @@
     "googleTestAdapter.general": {
       "title": "General",
       "order": 0,
-      "legacyOptionPageId": "cd97d4ed-c727-3652-b5fb-d00b8aabd90c"
+      "legacyOptionPageId": "44a7492e-544f-4308-a4ed-81a0d614e17e"
     },
     "googleTestAdapter.general.output": {
       "title": "Output",
@@ -801,7 +801,7 @@
     "googleTestAdapter.googleTest": {
       "title": "Google Test",
       "order": 1,
-      "legacyOptionPageId": "7aae4469-97bf-3212-a653-dcdaf751bea1"
+      "legacyOptionPageId": "87abbcba-1ebf-434c-9499-80c1c51b568a"
     },
     "googleTestAdapter.googleTest.runtimeBehavior": {
       "title": "Runtime behavior",
@@ -814,7 +814,7 @@
     "googleTestAdapter.testDiscovery": {
       "title": "Test Discovery",
       "order": 2,
-      "legacyOptionPageId": "59a7f67f-5bf8-3d0e-b9c9-e158fe08a0ed"
+      "legacyOptionPageId": "4d5bf0ff-3e29-4c5a-a4e4-1cff8fdb6812"
     },
     "googleTestAdapter.testDiscovery.misc": {
       "title": "Misc",
@@ -827,7 +827,7 @@
     "googleTestAdapter.testExecution": {
       "title": "Test Execution",
       "order": 3,
-      "legacyOptionPageId": "e36ab1ee-ac1d-361b-b4c0-618851df6f9c"
+      "legacyOptionPageId": "837bf16b-f9b8-4c9d-9be9-b700f7864fb7"
     },
     "googleTestAdapter.testExecution.parallelization": {
       "title": "Parallelization",

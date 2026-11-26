@@ -232,8 +232,10 @@ cd out/binaries/GoogleTestAdapter/Release
     keys.
   * The manifest is **generated** by `UnifiedSettingsRegistrationTests` from the options pages (the `[UnifiedSetting]`
     moniker and constraints of each property), `SettingsWrapper`'s texts and defaults, and the generated pkgdef (page
-    GUIDs). After changing options: build, run the tests with `GTA_UPDATE_UNIFIED_SETTINGS=1` (writes the file), and
-    **build again** - the VSIX contains the file as it was at build time.
+    GUIDs, which the manifest's `legacyOptionPageId`s refer to: the pages have `[Guid]` attributes, since the GUIDs .NET
+    generates otherwise depend on the assembly's version, which CI stamps). After changing options: build, run the
+    tests with `GTA_UPDATE_UNIFIED_SETTINGS=1` (writes the file), and **build again** - the VSIX contains the file as it
+    was at build time.
   * Monikers are `googleTestAdapter.<page>.<group>.<property>`; they are stored in users' `settings.json`, so never
     change them.
   * Values: DialogPage stores options in the SettingsManager store at `<page type>.<property>` (in `privateregistry.bin`;

@@ -12,6 +12,8 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
 
     [SuppressMessage("ReSharper", "UnusedMember.Global")]
     [ComVisible(true)]
+    // the page's GUID would otherwise depend on the assembly's version; the Unified Settings manifest refers to it
+    [Guid("44a7492e-544f-4308-a4ed-81a0d614e17e")]
     public class GeneralOptionsDialogPage : NotifyingDialogPage
     {
         #region Output

@@ -10,6 +10,8 @@ namespace GoogleTestAdapter.VsPackage.OptionsPages
 {
 
     [ComVisible(true)]
+    // the page's GUID would otherwise depend on the assembly's version; the Unified Settings manifest refers to it
+    [Guid("87abbcba-1ebf-434c-9499-80c1c51b568a")]
     public class GoogleTestOptionsDialogPage : NotifyingDialogPage
     {
         #region Runtime behavior

@@ -1,6 +1,6 @@
 {
   "name": "google-test-adapter",
-  "version": "0.24.0",
+  "version": "0.24.1",
   "description": "Diagnose and configure Google Test Adapter, which shows and runs Google Test tests and Google Benchmark benchmarks in Visual Studio's Test Explorer.",
   "author": {
     "name": "David Bailey",

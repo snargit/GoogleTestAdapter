@@ -8,7 +8,7 @@ describes the code base as it was before the fork.
 
 ## Status (November 2026)
 
-* Versions **0.19.0** and **0.20.0** have been published as pre-releases on GitHub, **0.21.0** to **0.24.0** as
+* Versions **0.19.0** and **0.20.0** have been published as pre-releases on GitHub, **0.21.0** to **0.24.1** as
   releases (see `GoogleTestAdapter/VsPackage.GTA/Resources/ReleaseNotes/`).
 * Since 0.22.0: support of Google Benchmark executables (see the README and [Google Benchmark](#google-benchmark)
   below); executables containing both Google Test tests and benchmarks are out of scope so far (GTA discovers their
@@ -151,7 +151,7 @@ cd out/binaries/GoogleTestAdapter/Release
     VsPackage.GTA.Tests.Unit/GoogleTestAdapter.VsPackage.GTA.Tests.Unit.dll //Parallel
 ```
 
-* As of 0.24.0, all 787 tests pass. Run the suite more than once after changes affecting timing or files: the test
+* As of 0.24.1, all 788 tests pass. Run the suite more than once after changes affecting timing or files: the test
   assemblies run in parallel and share the sample binaries, so tests must never rename or modify sample files, nor
   delete the files GTA writes next to them, such as the durations files `<exe>.gta.testdurations` (one test renaming a
   sample's .pdb, and one deleting durations files, which another process recreated right away, were flaky for exactly
@@ -175,10 +175,10 @@ cd out/binaries/GoogleTestAdapter/Release
 2. Stamp the version for the build, build, and revert the stamp:
    ```bash
    cd GoogleTestAdapter
-   powershell -NoProfile -ExecutionPolicy Bypass -File SetVersion.ps1 0.24.0.0
+   powershell -NoProfile -ExecutionPolicy Bypass -File SetVersion.ps1 0.24.1.0
    # build as above
    git checkout -- '*/Properties/AssemblyInfo.cs' Packaging.TAfGT/source.extension.vsixmanifest ProjectTemplates/Test/GoogleTest/GoogleTest.vstemplate
-   sed -i 's#Version="0.24.0.0" Language#Version="0.1.0.0" Language#' Packaging.GTA/source.extension.vsixmanifest
+   sed -i 's#Version="0.24.1.0" Language#Version="0.1.0.0" Language#' Packaging.GTA/source.extension.vsixmanifest
    ```
    The GTA vsixmanifest has intentional changes, so only its version is reverted.
 3. The VSIX and NuGet package are `out/binaries/GoogleTestAdapter/Release/Packaging.GTA/Packaging.GTA.vsix` and
